@@ -877,10 +877,8 @@ uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
     /* populate shift tables the first time through */
     pthread_once(&crc32c_once_hw, crc32c_init_hw);
 
-	printf("hardware crc!!\n");
-
     /* pre-process the crc */
-    crc0 = crc ^ 0xffffffff;
+    crc0 = crc;// ^ 0xffffffff;
 
 
     /* compute the crc for up to seven leading bytes to bring the data pointer
@@ -956,7 +954,7 @@ uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
     }
 
     /* return a post-processed crc */
-    return (uint32_t)crc0 ^ 0xffffffff;
+    return (uint32_t)crc0;// ^ 0xffffffff;
 }
 
 /* Check for SSE 4.2.  SSE 4.2 was first supported in Nehalem processors
@@ -995,11 +993,8 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	struct mbuf *at;
 	SSE42(sse42support);
 
-	if(!sse42support) {
-		base = 0xffffffff;
-	} else {
-		base = 0;
-	}
+	sse42support = 1;
+	base = 0xffffffff;
 
 	at = m;
 	/* find the correct mbuf and offset into mbuf */
