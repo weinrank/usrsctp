@@ -94,6 +94,9 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_crc32.c 235828 2012-05-23 11:26:28Z tu
  * File Name = ............................ 8x256_tables.c
  */
 
+static int crc32c_hw_support(void);
+static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
+
 static uint32_t sctp_crc_tableil8_o32[256] =
 {
 	0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4, 0xC79A971F, 0x35F1141C, 0x26A1E7E8, 0xD4CA64EB,
@@ -743,10 +746,134 @@ sctp_finalize_crc32c(uint32_t crc32c)
 	return (crc32c);
 }
 
+uint32_t
+sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
+{
+	/*
+	 * given a mbuf chain with a packetheader offset by 'offset'
+	 * pointing at a sctphdr (with csum set to 0) go through the chain
+	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
+	 * has a side bonus as it will calculate the total length of the
+	 * mbuf chain. Note: if offset is greater than the total mbuf
+	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
+	 */
+
+	int sse42support;
+	uint32_t base;
+	struct mbuf *at;
+
+	sse42support = crc32c_hw_support();
+	base = 0xffffffff;
+
+	at = m;
+	/* find the correct mbuf and offset into mbuf */
+	while ((at != NULL) && (offset > (uint32_t) SCTP_BUF_LEN(at))) {
+		offset -= SCTP_BUF_LEN(at);	/* update remaining offset
+						 * left */
+		at = SCTP_BUF_NEXT(at);
+	}
+	while (at != NULL) {
+		if ((SCTP_BUF_LEN(at) - offset) > 0) {
+			/* calculate CRC32 in hardware (SSE42) or software */
+			if(sse42support) {
+				base = crc32c_hw(base,
+				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
+				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
+			} else {
+				base = calculate_crc32c(base,
+				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
+				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
+			}
+		}
+		if (offset) {
+			/* we only offset once into the first mbuf */
+			if (offset < (uint32_t) SCTP_BUF_LEN(at))
+				offset = 0;
+			else
+				offset -= SCTP_BUF_LEN(at);
+		}
+		at = SCTP_BUF_NEXT(at);
+	}
+	base = sctp_finalize_crc32c(base);
+	return (base);
+}
+#endif				/* !defined(SCTP_WITH_NO_CSUM) */
+
+
+#if defined(__FreeBSD__)
+void
+sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
+{
+#if defined(SCTP_WITH_NO_CSUM)
+#ifdef INVARIANTS
+	panic("sctp_delayed_cksum() called when using no SCTP CRC.");
+#endif
+#else
+	uint32_t checksum;
+
+	checksum = sctp_calculate_cksum(m, offset);
+	SCTP_STAT_DECR(sctps_sendhwcrc);
+	SCTP_STAT_INCR(sctps_sendswcrc);
+	offset += offsetof(struct sctphdr, checksum);
+
+	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
+		SCTP_PRINTF("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
+		            (uint32_t) m->m_len, offset);
+		/*
+		 * XXX this shouldn't happen, but if it does, the correct
+		 * behavior may be to insert the checksum in the appropriate
+		 * next mbuf in the chain.
+		 */
+		return;
+	}
+	*(uint32_t *) (m->m_data + offset) = checksum;
+#endif
+}
+#endif
+
+
+#if !defined(SCTP_WITH_NO_CSUM)
+#if defined(__FreeBSD__) && __FreeBSD_version >= 800000
+#else
+
 /* CRC32C in hardware begin
-taken from: http://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software
-TODO: Lizenz klären!
-*/
+found here: http://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software */
+
+/* crc32c.c -- compute CRC-32C using the Intel crc32 instruction
+ * Copyright (C) 2013 Mark Adler
+ * Version 1.1  1 Aug 2013  Mark Adler - modified by Felix Weinrank 2015
+ */
+
+/*
+  This software is provided 'as-is', without any express or implied
+  warranty.  In no event will the author be held liable for any damages
+  arising from the use of this software.
+
+  Permission is granted to anyone to use this software for any purpose,
+  including commercial applications, and to alter it and redistribute it
+  freely, subject to the following restrictions:
+
+  1. The origin of this software must not be misrepresented; you must not
+     claim that you wrote the original software. If you use this software
+     in a product, an acknowledgment in the product documentation would be
+     appreciated but is not required.
+  2. Altered source versions must be plainly marked as such, and must not be
+     misrepresented as being the original software.
+  3. This notice may not be removed or altered from any source distribution.
+
+  Mark Adler
+  madler@alumni.caltech.edu
+ */
+
+/* Use hardware CRC instruction on Intel SSE 4.2 processors.  This computes a
+   CRC-32C, *not* the CRC-32 used by Ethernet and zip, gzip, etc.  A software
+   version is provided as a fall-back, as well as for speed comparisons. */
+
+/* Version history:
+   1.0  10 Feb 2013  First version
+   1.1   1 Aug 2013  Correct comments on why three crc instructions in parallel
+   1.2  31 Jul 2015  Minor changes for USRSCTP-usage
+ */
 
 /* CRC-32C (iSCSI) polynomial in reversed bit order. */
 #define POLY 0x82f63b78
@@ -862,13 +989,13 @@ static uint32_t crc32c_short[4][256];
 /* Initialize tables for shifting crcs. */
 static void crc32c_init_hw(void)
 {
-    printf("crc32c_init_hw\n");
+    printf("CRC32C - Initializing\n");
     crc32c_zeros(crc32c_long, LONG);
     crc32c_zeros(crc32c_short, SHORT);
 }
 
 /* Compute CRC-32C using the Intel hardware instruction. */
-uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
+static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
 {
     const unsigned char *next = buf;
     const unsigned char *end;
@@ -962,101 +1089,21 @@ uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
    cpuid instruction itself, which was introduced on the 486SL in 1992, so this
    will fail on earlier x86 processors.  cpuid works on all Pentium and later
    processors. */
-#define SSE42(have) \
-    do { \
-        uint32_t eax, ecx; \
-        eax = 1; \
-        __asm__("cpuid" \
-                : "=c"(ecx) \
-                : "a"(eax) \
-                : "%ebx", "%edx"); \
-        (have) = (ecx >> 20) & 1; \
-    } while (0)
 
+static int crc32c_hw_support(void) {
+#if defined __amd64__ || defined __x86_64__
+	uint32_t eax = 0, ecx = 0;
+	int support;
+	__asm__("cpuid"
+			: "=c"(ecx)
+			: "a"(eax)
+			: "%ebx", "%edx");
+	return support = (ecx >> 20) & 1;
+#elif
+	return 0;
+#endif
+}
 
 /* CRC32C in hardware end */
-
-uint32_t
-sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
-{
-	/*
-	 * given a mbuf chain with a packetheader offset by 'offset'
-	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
-	 * has a side bonus as it will calculate the total length of the
-	 * mbuf chain. Note: if offset is greater than the total mbuf
-	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
-	 */
-
-	int sse42support;
-	uint32_t base;
-	struct mbuf *at;
-	SSE42(sse42support);
-
-	sse42support = 1;
-	base = 0xffffffff;
-
-	at = m;
-	/* find the correct mbuf and offset into mbuf */
-	while ((at != NULL) && (offset > (uint32_t) SCTP_BUF_LEN(at))) {
-		offset -= SCTP_BUF_LEN(at);	/* update remaining offset
-						 * left */
-		at = SCTP_BUF_NEXT(at);
-	}
-	while (at != NULL) {
-		if ((SCTP_BUF_LEN(at) - offset) > 0) {
-			if(!sse42support) {
-				base = calculate_crc32c(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
-			} else {
-				base = crc32c_hw(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
-			}
-		}
-		if (offset) {
-			/* we only offset once into the first mbuf */
-			if (offset < (uint32_t) SCTP_BUF_LEN(at))
-				offset = 0;
-			else
-				offset -= SCTP_BUF_LEN(at);
-		}
-		at = SCTP_BUF_NEXT(at);
-	}
-	base = sctp_finalize_crc32c(base);
-	return (base);
-}
-#endif				/* !defined(SCTP_WITH_NO_CSUM) */
-
-
-#if defined(__FreeBSD__)
-void
-sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
-{
-#if defined(SCTP_WITH_NO_CSUM)
-#ifdef INVARIANTS
-	panic("sctp_delayed_cksum() called when using no SCTP CRC.");
-#endif
-#else
-	uint32_t checksum;
-
-	checksum = sctp_calculate_cksum(m, offset);
-	SCTP_STAT_DECR(sctps_sendhwcrc);
-	SCTP_STAT_INCR(sctps_sendswcrc);
-	offset += offsetof(struct sctphdr, checksum);
-
-	if (offset + sizeof(uint32_t) > (uint32_t) (m->m_len)) {
-		SCTP_PRINTF("sctp_delayed_cksum(): m->len: %d,  off: %d.\n",
-		            (uint32_t) m->m_len, offset);
-		/*
-		 * XXX this shouldn't happen, but if it does, the correct
-		 * behavior may be to insert the checksum in the appropriate
-		 * next mbuf in the chain.
-		 */
-		return;
-	}
-	*(uint32_t *) (m->m_data + offset) = checksum;
-#endif
-}
-#endif
+#endif /* !defined(SCTP_WITH_NO_CSUM) */
+#endif /* defined(__FreeBSD__) && __FreeBSD_version >= 800000 */
