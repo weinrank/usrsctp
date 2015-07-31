@@ -989,7 +989,7 @@ static uint32_t crc32c_short[4][256];
 /* Initialize tables for shifting crcs. */
 static void crc32c_init_hw(void)
 {
-    printf("CRC32C - initializing CPU supported methode\n");
+    printf("CRC32C - initializing CPU supported method\n");
     crc32c_zeros(crc32c_long, LONG);
     crc32c_zeros(crc32c_short, SHORT);
 }
