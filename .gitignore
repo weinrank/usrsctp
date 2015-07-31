@@ -66,4 +66,4 @@ programs/rtcweb
 programs/tsctp
 
 # callgrind
-callgrind.out.*
+callgrind.out*
