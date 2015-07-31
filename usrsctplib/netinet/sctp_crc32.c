@@ -1099,7 +1099,7 @@ static int crc32c_hw_support(void) {
 			: "a"(eax)
 			: "%ebx", "%edx");
 	return support = (ecx >> 20) & 1;
-#elif
+#else
 	return 0;
 #endif
 }
