@@ -989,7 +989,7 @@ static uint32_t crc32c_short[4][256];
 /* Initialize tables for shifting crcs. */
 static void crc32c_init_hw(void)
 {
-    printf("CRC32C - Initializing\n");
+    printf("CRC32C - initializing CPU supported methode\n");
     crc32c_zeros(crc32c_long, LONG);
     crc32c_zeros(crc32c_short, SHORT);
 }
@@ -1092,13 +1092,16 @@ static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
 
 static int crc32c_hw_support(void) {
 #if defined __amd64__ || defined __x86_64__
-	uint32_t eax = 0, ecx = 0;
-	int support;
+	uint32_t eax, ecx;
+
+	eax = 1;
+	ecx = 0;
 	__asm__("cpuid"
 			: "=c"(ecx)
 			: "a"(eax)
 			: "%ebx", "%edx");
-	return support = (ecx >> 20) & 1;
+
+	return (ecx >> 20) & 1;
 #else
 	return 0;
 #endif
