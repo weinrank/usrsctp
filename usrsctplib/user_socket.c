@@ -2791,8 +2791,18 @@ sctp_userspace_ip_output(int *result, struct mbuf *o_pak,
 	struct msghdr msg_hdr;
 #endif
 	int use_udp_tunneling;
-
 	*result = 0;
+
+#ifdef NETMAP
+	if(SCTP_BASE_VAR(netmap_base.fd) != -1) {
+		usrsctp_netmap_ip_output(result,o_pak);
+		sctp_m_freem(o_pak);
+		//goto free_mbuf;
+		return;
+	}
+#endif // netmap
+	SCTP_PRINTF("sending ohne netmap\n");
+
 
 	m = SCTP_HEADER_TO_CHAIN(o_pak);
 	m_orig = m;

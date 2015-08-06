@@ -95,6 +95,14 @@ if test x$enable_inet6 = xyes; then
         AC_DEFINE(INET6, 1, [Support IPv6])
 fi
 
+AC_ARG_ENABLE(netmap,
+  AC_HELP_STRING( [--enable-netmap],
+                  [Support NETMAP @<:@default=no@:>@]),
+    enable_netmap=$enableval,enable_netmap=no)
+if test x$enable_netmap = xyes; then
+        AC_DEFINE(NETMAP, 1, [Support NETMAP])
+fi
+
 AC_CHECK_TYPE(size_t)
 AC_CHECK_TYPE(ssize_t)
 
