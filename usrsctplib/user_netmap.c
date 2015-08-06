@@ -52,7 +52,7 @@ static void 	usrsctp_netmap_pkt_info_sctp(char *buffer, uint32_t length, uint8_t
 static void 	usrsctp_netmap_pkt_info_udp(char *buffer, uint32_t length, uint8_t recursive);
 static void 	usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length);
 static void 	usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length);
-static void 	usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header);
+static void 	usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port);
 static void 	usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *ip_header);
 static void 	usrsctp_netmap_handle_arp(char *buffer, uint32_t length);
 
@@ -222,7 +222,7 @@ static void usrsctp_netmap_pkt_info_ipv4(char *buffer, uint32_t length, uint8_t 
 	uint16_t ip_header_len;
 
 	if(length < sizeof(struct ip)) {
-		SCTP_PRINTF("error: packet too short for ip header!\n");
+		SCTP_PRINTF("error: packet too short for IP header!\n");
 		return;
 	}
 	ip_header = (struct ip*)buffer;
@@ -252,11 +252,11 @@ static void usrsctp_netmap_pkt_info_sctp(char *buffer, uint32_t length, uint8_t 
 	struct sctphdr *sctp_header;
 
 	if (length < sizeof(struct sctphdr)) {
-		SCTP_PRINTF("error: packet too short for sctp header!\n");
+		SCTP_PRINTF("error: packet too short for SCTP header!\n");
 		return;
 	}
 	sctp_header = (struct sctphdr*)buffer;
-	SCTP_PRINTF("\t## IP4\n");
+	SCTP_PRINTF("\t## SCTP\n");
 }
 
 // print udp info
@@ -264,7 +264,7 @@ static void usrsctp_netmap_pkt_info_udp(char *buffer, uint32_t length, uint8_t r
 	struct udphdr *udp_header;
 
 	if (length < sizeof(struct udphdr)) {
-		SCTP_PRINTF("error: packet too short for udp header!\n");
+		SCTP_PRINTF("error: packet too short for UDP header!\n");
 		return;
 	}
 	udp_header = (struct udphdr*)buffer;
@@ -395,7 +395,7 @@ static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
 
 	switch (ip_header->ip_p) {
 	    case IPPROTO_SCTP:
-	        usrsctp_netmap_handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
+	        usrsctp_netmap_handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header, 0);
 	        break;
 	    case IPPROTO_UDP:
 	        usrsctp_netmap_handle_udp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
@@ -405,7 +405,7 @@ static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
 }
 
 // handle sctp packets
-static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header) {
+static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port) {
 
 	struct sockaddr_in src, dst;
 	struct mbuf *m;
@@ -413,7 +413,6 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 	struct sctp_chunkhdr *ch;
 	//struct ip* ip_header;
 	int ecn = 0;
-	uint16_t port;
 #if !defined(SCTP_WITH_NO_CSUM)
 	int compute_crc = 1;
 #endif
@@ -473,8 +472,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 		m_freem(m);
 		return;
 	}
-
-	port = 0;
+	
 
 #if defined(SCTP_WITH_NO_CSUM)
 	SCTP_STAT_INCR(sctps_recvnocrc);
@@ -491,7 +489,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 #if !defined(SCTP_WITH_NO_CSUM)
 	                             1,
 #endif
-	                             ecn,SCTP_DEFAULT_VRFID, 0);
+	                             ecn,SCTP_DEFAULT_VRFID, udp_encaps_port);
 
 	if (m) {
 		sctp_m_freem(m);
@@ -510,8 +508,7 @@ static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *
 	udp_header = (struct udphdr*)buffer;
 
 	if (ntohs(udp_header->uh_dport) == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
-		SCTP_PRINTF("netmap - got udp encaps packet\n");
-		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header);
+		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header, udp_header->uh_sport);
 	} else {
 		SCTP_PRINTF("netmap - discarding udp packet - wrong port: %u\n",udp_header->uh_dport);
 	}
@@ -748,3 +745,4 @@ int usrsctp_netmap_close() {
 }
 
 #endif //defined(NETMAP) || defined(MULTISTACK)
+
