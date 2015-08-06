@@ -510,7 +510,7 @@ static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *
 	if (ntohs(udp_header->uh_dport) == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
 		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header, udp_header->uh_sport);
 	} else {
-		SCTP_PRINTF("netmap - discarding udp packet - wrong port: %u\n",udp_header->uh_dport);
+		SCTP_PRINTF("netmap - discarding udp packet - wrong port: %u\n",ntohs(udp_header->uh_dport));
 	}
 }
 
