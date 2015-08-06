@@ -1,7 +1,7 @@
 
 #include <stdio.h>
 
-#ifdef NETMAP
+#if defined(NETMAP) || defined(MULTISTACK)
 #include <string.h>
 #include <stdint.h>
 #include <fcntl.h>
@@ -19,6 +19,8 @@
 
 #include <netinet/sctp_input.h>
 
+
+
 /* ########## TOOD ##########
 - performance - unnötiges kopieren?
 - abbau der Verinbindung (fd close, ummap, ...)
@@ -31,7 +33,14 @@
 
 /* ########## CONFIG SECTION ########## */
 
+
+
+#if defined(MULTISTACK)
+const char *netmap_ifname = "valem:usrsctp1";
+const uint16_t multistack_port = 9899;
+#else
 const char *netmap_ifname = "ix0";
+#endif
 
 const char *netmap_mac_src = "00:1b:21:5e:bc:1c";
 //const char *netmap_mac_dst = "60:f8:1d:b6:4c:f8"; // macbook wifi
@@ -40,6 +49,7 @@ const char *netmap_mac_dst = "00:1b:21:55:1e:f0"; // bsd2
 const int netmap_ip_override = 0;
 const char *netmap_ip_src = "10.0.1.201";
 const char *netmap_ip_dst = "10.0.1.123";
+
 //const char *netmap_ip_dst = "10.0.1.202"; // bsd2
 
 const int netmap_debug_pkts = 0;
@@ -171,11 +181,11 @@ static void usrsctp_netmap_pkt_info_ethernet(char* buffer, uint32_t length, uint
     SCTP_PRINTF("\t%s", ether_ntoa((struct ether_addr *)eth_header->ether_shost));
     SCTP_PRINTF(" -> ");
     SCTP_PRINTF("%s\n", ether_ntoa((struct ether_addr *)eth_header->ether_dhost));
-    
+
     if(recursive) {
 	    switch(htons(eth_header->ether_type)) {
-	    	
-	    	/* IP */	
+
+	    	/* IP */
 	    	case ETHERTYPE_IP:
 			    usrsctp_netmap_pkt_info_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header),recursive);
 			    break;
@@ -203,7 +213,7 @@ static void usrsctp_netmap_pkt_info_arp(char *buffer, uint32_t length, uint8_t r
 
 	arp_packet = (struct arp_packet*)buffer;
 	SCTP_PRINTF("\t## ARP");
-	
+
 	switch(arp_packet->operation) {
 
 		// request
@@ -289,7 +299,7 @@ static void usrsctp_netmap_pkt_info_udp(char *buffer, uint32_t length, uint8_t r
 
 static void usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length) {
 	struct ether_header *eth_header;
-	
+
 	if (length < sizeof(struct ether_header)) {
         SCTP_PRINTF("error: packet too short for ether_header!\n");
         return;
@@ -308,7 +318,7 @@ static void usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length) {
     	case(ETHERTYPE_IP):
     		usrsctp_netmap_handle_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
     		break;
-    }    
+    }
 }
 
 // handle ARP requests
@@ -321,15 +331,15 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 	struct netmap_slot *slot;
 	struct netmap_ring *tx_ring;
 	char *nmBuf;
-	uint32_t cur; 
+	uint32_t cur;
 
 	if(length < sizeof(struct arp_packet)) {
         SCTP_PRINTF("error: packet too short for arp_packet!\n");
         return;
 	}
-	
+
 	arp_request = (struct arp_packet*)buffer;
-	
+
 	// should be fine, just in case...
 	if(!inet_pton(AF_INET,netmap_ip_src,&ip_local)) {
 		SCTP_PRINTF("pton failed!\n");
@@ -338,7 +348,7 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 
 	// XXX performance? valid?
 	if(!memcmp(&arp_request->dst_ip,&ip_local,4)) {
-	
+
 		tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
 
 		cur = tx_ring->cur;
@@ -349,7 +359,7 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 			nmBuf = NETMAP_BUF(tx_ring, slot->buf_idx);
 
 			//memset(nmBuf,0,sizeof(struct ether_header)+ip_pkt_len);
-				
+
 			// build ARP request - quite ugly..
 			arp_response = (struct arp_packet*)(nmBuf + sizeof(struct ether_header));
 			arp_response->hardware_type	= htons(1);
@@ -358,7 +368,7 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 			arp_response->hardware_size	= 6;
 			arp_response->protocol_size	= 4;
 			arp_response->operation		= htons(2);
-			//arp_request.src_mac			= 
+			//arp_request.src_mac			=
 			arp_response->src_ip			= *(uint32_t*)&ip_local;
 			//arp_request.dst_mac			= arp_packet->src_mac;
 			arp_response->dst_ip			= arp_request->src_ip;
@@ -377,7 +387,7 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 			ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
 		} else {
 			SCTP_PRINTF("arp - no space left in ring\n");
-		}	
+		}
 	}
 }
 
@@ -414,7 +424,7 @@ static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
 
 // handle sctp packets
 static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header) {
-	
+
 	struct sockaddr_in src, dst;
 	struct mbuf *m;
 	struct sctphdr *sh;
@@ -452,12 +462,12 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 
 	sh = mtod(m, struct sctphdr *);;
 	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
-	
+
 
 	if (ip_header->ip_tos != 0) {
 		ecn = ip_header->ip_tos & 0x02;
 	}
-	
+
 	dst.sin_family = AF_INET;
 #ifdef HAVE_SIN_LEN
 	dst.sin_len = sizeof(struct sockaddr_in);
@@ -471,7 +481,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 #endif
 	src.sin_addr = ip_header->ip_src;
 	src.sin_port = sh->src_port;
-	
+
 	/* SCTP does not allow broadcasts or multicasts */
 	if (IN_MULTICAST(ntohl(dst.sin_addr.s_addr))) {
 		m_freem(m);
@@ -494,7 +504,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 		SCTP_STAT_INCR(sctps_recvswcrc);
 	}
 #endif
-	
+
 	sctp_common_input_processing(&m, 0, sizeof(struct sctphdr), length, (struct sockaddr *)&src, (struct sockaddr *)&dst, sh, ch,
 #if !defined(SCTP_WITH_NO_CSUM)
 	                             1,
@@ -516,7 +526,7 @@ static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *
 	}
 
 	udp_header = (struct udphdr*)buffer;
-	
+
 	if (ntohs(udp_header->uh_dport) == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
 		SCTP_PRINTF("netmap - got udp encaps packet\n");
 		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header);
@@ -548,12 +558,12 @@ void *usrsctp_netmap_recv_function(void *arg) {
     pfd.events = POLLIN;
     pfd.revents = 0;
 
-    rx_ring_index = 0;	
-	
+    rx_ring_index = 0;
+
 
 	while (1) {
         poll(&pfd, 1, -1);
-        
+
         ring_index = rx_ring_index;
 
     	do {
@@ -565,7 +575,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	            buf_idx = ring->slot[cur].buf_idx;
 	            buf = NETMAP_BUF(ring, buf_idx);
 	            buf_len = ring->slot[cur].len;
-	            
+
 	            if(netmap_debug_operation) {
 	            	SCTP_PRINTF("netmap - incoming packet <<<\n");
 	            }
@@ -579,7 +589,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	            }
 
 	            usrsctp_netmap_handle_ethernet(buf,buf_len);
-	            
+
 	            ring->cur = nm_ring_next(ring, cur);
 	            ring->head = ring->cur;
 	            rx_ring_index = ring_index;
@@ -592,7 +602,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 
 	    } while (ring_index != rx_ring_index);
     }
-	return (NULL);		                      
+	return (NULL);
 }
 
 
@@ -605,7 +615,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	struct netmap_slot *slot;
 	struct netmap_ring *tx_ring;
 	char *nmBuf;
-	uint32_t cur, ip_pkt_len; 
+	uint32_t cur, ip_pkt_len;
 
 	ip_pkt_len = sctp_calculate_len(o_pak);
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
@@ -634,7 +644,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 		memcpy(eth_header->ether_dhost, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
 		// correct ip header len
-		ip_header = (struct ip*)(nmBuf + sizeof(struct ether_header)); 
+		ip_header = (struct ip*)(nmBuf + sizeof(struct ether_header));
 		// override outgoing ip?
 		if(netmap_ip_override) {
 			inet_pton(AF_INET, netmap_ip_dst, &ip_header->ip_dst);
@@ -663,7 +673,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	} else {
 		*result = ENOBUFS;
 		SCTP_PRINTF("netmap - no space left in ring\n");
-	}	
+	}
 }
 
 
@@ -671,7 +681,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 int usrsctp_netmap_init() {
 	struct sctp_netmap_base* netmap_base;
 	netmap_base = &SCTP_BASE_VAR(netmap_base);
-	
+
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
 	strcpy(netmap_base->req.nr_name, netmap_ifname);
 	netmap_base->req.nr_version = NETMAP_API;
@@ -688,6 +698,41 @@ int usrsctp_netmap_init() {
 		SCTP_PRINTF("netmap - ioctl NIOCREGIF failed\n");
 		return -1;
 	}
+
+#if defined(MULTISTACK)
+    SCTP_PRINTF("netmap - running in MULTISTACK mode\n");
+    struct sockaddr_in sin;
+
+    //so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
+    if ((netmap_base->so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+        perror("socket");
+        return -1;
+    }
+    SCTP_PRINTF("multistack - socket\n");
+
+    sin.sin_family = AF_INET;
+    sin.sin_port = htons(multistack_port);
+    //sin.sin_addr.s_addr = htonl(g.src_ip.start);
+	if(!inet_pton(AF_INET, netmap_ip_src, &sin.sin_addr.s_addr)){
+		printf("error: invalid local address\n");
+		return -1;
+	}
+    if (bind(netmap_base->so, (struct sockaddr *)&sin, sizeof(sin))) {
+        perror("bind");
+        close(netmap_base->so);
+        return -1;
+    }
+    SCTP_PRINTF("multistack - bind\n");
+    strncpy(netmap_base->msr.mr_name, netmap_base->req.nr_name, sizeof(netmap_base->msr.mr_name));
+    netmap_base->msr.mr_cmd = MULTISTACK_BIND;
+    netmap_base->msr.mr_sin = sin;
+    netmap_base->msr.mr_proto = IPPROTO_UDP;
+    if (ioctl(netmap_base->fd, NIOCCONFIG, &netmap_base->msr)) {
+        perror("multistack - ioctl");
+        return -1;
+    }
+
+#endif /* MULTISTACK */
 
 	if((netmap_base->mem = mmap(0, netmap_base->req.nr_memsize, PROT_WRITE | PROT_READ, MAP_SHARED, netmap_base->fd, 0)) == (void *) -1){
 		SCTP_PRINTF("netmap - mmap failed\n");
@@ -720,4 +765,4 @@ int usrsctp_netmap_close() {
 
 }
 
-#endif
+#endif //defined(NETMAP) || defined(MULTISTACK)

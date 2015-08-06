@@ -103,6 +103,14 @@ if test x$enable_netmap = xyes; then
         AC_DEFINE(NETMAP, 1, [Support NETMAP])
 fi
 
+AC_ARG_ENABLE(multistack,
+  AC_HELP_STRING( [--enable-multistack],
+                  [Support multistack @<:@default=no@:>@]),
+    enable_multistack=$enableval,enable_multistack=no)
+if test x$enable_multistack = xyes; then
+        AC_DEFINE(MULTISTACK, 1, [Support MULTISTACK])
+fi
+
 AC_CHECK_TYPE(size_t)
 AC_CHECK_TYPE(ssize_t)
 

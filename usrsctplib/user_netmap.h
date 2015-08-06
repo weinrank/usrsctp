@@ -29,10 +29,12 @@
 #ifndef _USER_NETMAP_H_
 #define _USER_NETMAP_H_
 
-
-//#include <net/ethernet.h>
 #include <net/netmap_user.h>
 #include <user_mbuf.h>
+
+#if defined(MULTISTACK)
+#include <net/multistack.h>
+#endif // defined(MULTISTACK)
 
 struct sctp_netmap_base {
 	int state;
@@ -40,6 +42,10 @@ struct sctp_netmap_base {
 	struct nmreq req;
 	char *mem;
 	struct netmap_if *iface;
+#if defined(MULTISTACK)
+    int so;
+    struct msreq msr;
+#endif /* defined(MULTISTACK) */
 };
 
 void usrsctp_netmap_pkt_info(char* buffer, uint32_t length);
