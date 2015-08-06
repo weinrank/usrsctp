@@ -45,6 +45,8 @@ libusrsctp_la_SOURCES  = user_atomic.h \
                          user_socket.c \
                          user_socketvar.h \
                          user_uma.h \
+                         user_netmap.h \
+                         user_netmap.c \
                          netinet/sctp.h \
                          netinet/sctp_asconf.c netinet/sctp_asconf.h \
                          netinet/sctp_auth.c netinet/sctp_auth.h \
@@ -78,4 +80,3 @@ libusrsctp_la_SOURCES  = user_atomic.h \
 libusrsctp_la_CFLAGS = $(LIBCFLAGS)
 libusrsctp_la_LDFLAGS = -version-info 1:0:0
 include_HEADERS = usrsctp.h
-
