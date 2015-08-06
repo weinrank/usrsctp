@@ -203,6 +203,12 @@ sctp_finish(void)
 	}
 #endif
 #endif
+
+#if defined(NETMAP) || defined(MULTISTACK)
+	usrsctp_netmap_close();
+	//pthread_join(SCTP_BASE_VAR(recvthreadnetmap), NULL);
+#endif //defined(NETMAP) || defined(MULTISTACK)
+
 #ifdef INET
 	if (SCTP_BASE_VAR(userspace_rawsctp) != -1) {
 #if defined(__Userspace_os_Windows)

@@ -16,45 +16,27 @@
 #include <arpa/inet.h>
 #include <sys/poll.h>
 #include <netinet/udp.h>
-
 #include <netinet/sctp_input.h>
 
-
-
-/* ########## TOOD ##########
-- performance - unnötiges kopieren?
-- abbau der Verinbindung (fd close, ummap, ...)
-- debug Funktionen via define
-- arp komplett einbauen
-- hoststack anbinden
-*/
-
-
-
 /* ########## CONFIG SECTION ########## */
-
-
 
 #if defined(MULTISTACK)
 const char *netmap_ifname = "valem:usrsctp1";
 const uint16_t multistack_port = 9899;
 #else
-const char *netmap_ifname = "ix0";
+const char *netmap_ifname = "igb1";
 #endif
 
-const char *netmap_mac_src = "00:1b:21:5e:bc:1c";
-//const char *netmap_mac_dst = "60:f8:1d:b6:4c:f8"; // macbook wifi
-const char *netmap_mac_dst = "00:1b:21:55:1e:f0"; // bsd2
+const char *netmap_mac_src = "00:1b:21:73:a2:e9"; // bsd1
+const char *netmap_mac_dst = "00:1b:21:75:dc:7d"; // bsd2
 
 const int netmap_ip_override = 0;
-const char *netmap_ip_src = "10.0.1.201";
-const char *netmap_ip_dst = "10.0.1.123";
+const char *netmap_ip_src = "10.0.1.201"; // bsd1
+const char *netmap_ip_dst = "10.0.1.202"; // bsd2
 
-//const char *netmap_ip_dst = "10.0.1.202"; // bsd2
-
-const int netmap_debug_pkts = 0;
-const int netmap_debug_operation = 0;
-const int netmap_debug_hexdump = 0;
+const int netmap_debug_pkts = 0; // print information about ever incoming or outgoing packet
+const int netmap_debug_operation = 0; // print operation information
+const int netmap_debug_hexdump = 0; // hexdump ever packet
 
 #define MAXLEN_MBUF_CHAIN 32
 
@@ -398,7 +380,7 @@ static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
 	uint16_t ip_total_length;
 
 	if(length < sizeof(struct ip)) {
-		SCTP_PRINTF("error: packet too short for arp_packet!\n");
+		SCTP_PRINTF("error: packet too short for ip_packet!\n");
 		return;
 	}
 
@@ -520,7 +502,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *ip_header) {
 	struct udphdr *udp_header;
 
-	if(length < sizeof(struct sctphdr)) {
+	if(length < sizeof(struct udphdr)) {
 		SCTP_PRINTF("error: packet too short for udp_header!\n");
 		return;
 	}
@@ -531,7 +513,7 @@ static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *
 		SCTP_PRINTF("netmap - got udp encaps packet\n");
 		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header);
 	} else {
-		SCTP_PRINTF("netmap - discarding udp packet - wrong port\n");
+		SCTP_PRINTF("netmap - discarding udp packet - wrong port: %u\n",udp_header->uh_dport);
 	}
 }
 
