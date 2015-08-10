@@ -28,7 +28,7 @@ const char *netmap_ifname = "em2";
 #endif
 
 const char *netmap_mac_src = "08:00:27:12:0d:e1";
-const char *netmap_mac_dst = "0a:00:27:00:00:00 ";
+const char *netmap_mac_dst = "0a:00:27:00:00:00";
 
 const int netmap_ip_override = 0;
 const char *netmap_ip_src = "192.168.56.2";
@@ -730,6 +730,12 @@ int usrsctp_netmap_close() {
 	//	usleep(1); /* wait 1 tick */
 	//}
 
+#ifdef MULTISTACK
+	SCTP_BASE_VAR(netmap_base.msr.mr_cmd) = MULTISTACK_UNBIND;
+	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr.mr_cmd)))
+		perror("ioctl");
+	close(SCTP_BASE_VAR(netmap_base.so));
+#endif
 
 	// closes the file descriptor
 	if (munmap(SCTP_BASE_VAR(netmap_base.mem), SCTP_BASE_VAR(netmap_base.req.nr_memsize))) {
