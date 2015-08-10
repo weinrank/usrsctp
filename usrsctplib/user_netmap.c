@@ -697,7 +697,7 @@ int usrsctp_netmap_init() {
 		return -1;
 	}
     if (bind(netmap_base->so, (struct sockaddr *)&sin, sizeof(sin))) {
-        perror("bind");
+        perror("multistack - bind");
         close(netmap_base->so);
         return -1;
     }
@@ -706,7 +706,10 @@ int usrsctp_netmap_init() {
     netmap_base->msr.mr_cmd = MULTISTACK_BIND;
     netmap_base->msr.mr_sin = sin;
     netmap_base->msr.mr_proto = IPPROTO_UDP;
-    if (ioctl(netmap_base->fd, NIOCCONFIG, &netmap_base->msr)) {
+
+    printf("%p\n",&netmap_base->msr);
+
+    if (ioctl(netmap_base->fd, NIOCCONFIG, &netmap_base->msr) == -1) {
         perror("multistack - ioctl");
         return -1;
     }
@@ -735,7 +738,7 @@ int usrsctp_netmap_close() {
 
 #ifdef MULTISTACK
 	SCTP_BASE_VAR(netmap_base.msr.mr_cmd) = MULTISTACK_UNBIND;
-	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr.mr_cmd))) {
+	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr)) == -1) {
 		perror("multistack - ioctl");
 		SCTP_PRINTF("raus\n");
 		return -1;
