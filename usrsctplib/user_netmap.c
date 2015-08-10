@@ -725,16 +725,26 @@ int usrsctp_netmap_init() {
 }
 
 int usrsctp_netmap_close() {
-	//while (nm_tx_pending(args.nmTxRingPtr)) {
-	//	ioctl(args.nmFd, NIOCTXSYNC, NULL);
-	//	usleep(1); /* wait 1 tick */
-	//}
+	struct netmap_ring *tx_ring;
+	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
+	while (nm_tx_pending(tx_ring)) {
+		ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
+		usleep(1); /* wait 1 tick */
+		SCTP_PRINTF("waiting... \n");
+	}
 
 #ifdef MULTISTACK
 	SCTP_BASE_VAR(netmap_base.msr.mr_cmd) = MULTISTACK_UNBIND;
-	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr.mr_cmd)))
-		perror("ioctl");
-	close(SCTP_BASE_VAR(netmap_base.so));
+	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr.mr_cmd))) {
+		perror("multistack - ioctl");
+		SCTP_PRINTF("raus\n");
+		exit(-1);
+	}
+
+	if (close(SCTP_BASE_VAR(netmap_base.so))) {
+		perror("multistack - close");
+		exit(-1);
+	}
 #endif
 
 	// closes the file descriptor
@@ -743,8 +753,12 @@ int usrsctp_netmap_close() {
 		return -1;
 	}
 
-	close(SCTP_BASE_VAR(netmap_base.fd));
-	SCTP_PRINTF("netmap closed\n");
+	if (close(SCTP_BASE_VAR(netmap_base.fd))) {
+		perror("netmap - close");
+		return -1;
+	}
+
+	SCTP_PRINTF("netmap - closed successfully...\n");
 
 	return 0;
 
