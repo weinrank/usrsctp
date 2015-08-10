@@ -24,15 +24,15 @@
 const char *netmap_ifname = "valem:usrsctp1";
 const uint16_t multistack_port = 9899;
 #else
-const char *netmap_ifname = "em2";
+const char *netmap_ifname = "igb1";
 #endif
 
-const char *netmap_mac_src = "08:00:27:12:0d:e1";
-const char *netmap_mac_dst = "0a:00:27:00:00:00";
+const char *netmap_mac_src = "00:1b:21:73:a2:e9";
+const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
 
 const int netmap_ip_override = 0;
-const char *netmap_ip_src = "192.168.56.2";
-const char *netmap_ip_dst = "192.168.56.1";
+const char *netmap_ip_src = "10.0.1.201";
+const char *netmap_ip_dst = "10.0.1.202";
 
 const int netmap_debug_pkts = 0; // print information about ever incoming or outgoing packet
 const int netmap_debug_operation = 0; // print operation information
