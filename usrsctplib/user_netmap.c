@@ -738,12 +738,12 @@ int usrsctp_netmap_close() {
 	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr.mr_cmd))) {
 		perror("multistack - ioctl");
 		SCTP_PRINTF("raus\n");
-		exit(-1);
+		return -1;
 	}
 
 	if (close(SCTP_BASE_VAR(netmap_base.so))) {
 		perror("multistack - close");
-		exit(-1);
+		return -1;
 	}
 #endif
 
