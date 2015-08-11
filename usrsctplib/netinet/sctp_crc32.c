@@ -764,14 +764,14 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	uint32_t base;
 	struct mbuf *at;
 
-#if defined(CRC32CHW)
+#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
 	static uint8_t sse42support = 2;
 
 	if(sse42support == 2) {
 		sse42support = crc32c_hw_support();
 		SCTP_PRINTF("checking crc32c_hw_support - %u\n",sse42support);
 	}
-#endif
+#endif /* defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__)) */
 
 
 	base = 0xffffffff;
