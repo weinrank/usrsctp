@@ -94,7 +94,7 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_crc32.c 235828 2012-05-23 11:26:28Z tu
  * File Name = ............................ 8x256_tables.c
  */
 
-static int crc32c_hw_support(void);
+static uint8_t crc32c_hw_support(void);
 static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
 
 static uint32_t sctp_crc_tableil8_o32[256] =
@@ -758,13 +758,21 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
 	 */
 
-	int sse42support;
+
 	uint32_t base;
 	struct mbuf *at;
 
-	sse42support = crc32c_hw_support();
-	base = 0xffffffff;
+#if defined(CRC32CHW)
+	static uint8_t sse42support = 2;
 
+	if(sse42support == 2) {
+		sse42support = crc32c_hw_support();
+		SCTP_PRINTF("determing crc32c_hw_support - %u\n",sse42support);
+	}
+#endif
+
+
+	base = 0xffffffff;
 	at = m;
 	/* find the correct mbuf and offset into mbuf */
 	while ((at != NULL) && (offset > (uint32_t) SCTP_BUF_LEN(at))) {
@@ -775,15 +783,17 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	while (at != NULL) {
 		if ((SCTP_BUF_LEN(at) - offset) > 0) {
 			/* calculate CRC32 in hardware (SSE42) or software */
+#if defined(CRC32CHW)
 			if(sse42support) {
-				base = crc32c_hw(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
+				printf("crc in hardware\n");
+				base = crc32c_hw(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
 			} else {
-				base = calculate_crc32c(base,
-				    (unsigned char *)(SCTP_BUF_AT(at, offset)),
-				    (unsigned int)(SCTP_BUF_LEN(at) - offset));
+#endif /* defined(CRC32CHW) */
+				printf("crc in software\n");
+				base = calculate_crc32c(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
+#if defined(CRC32CHW)
 			}
+#endif /* defined(CRC32CHW) */
 		}
 		if (offset) {
 			/* we only offset once into the first mbuf */
@@ -832,10 +842,10 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #endif
 
 
-#if !defined(SCTP_WITH_NO_CSUM)
+#if !defined(SCTP_WITH_NO_CSUM) && defined(CRC32CHW)
 #if defined(__FreeBSD__) && __FreeBSD_version >= 800000
 #else
-#if defined __amd64__ || defined __x86_64__
+#if defined(__amd64__) || defined(__x86_64__)
 
 /* CRC32C in hardware begin
 found here: http://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software */
@@ -1259,8 +1269,8 @@ static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
    will fail on earlier x86 processors.  cpuid works on all Pentium and later
    processors. */
 #endif /* defined __amd64__ || defined __x86_64__ */
-static int crc32c_hw_support(void) {
-#if defined __amd64__ || defined __x86_64__
+static uint8_t crc32c_hw_support(void) {
+#if defined(__amd64__) || defined(__x86_64__)
 	uint32_t eax, ecx;
 
 	eax = 1;
@@ -1273,9 +1283,9 @@ static int crc32c_hw_support(void) {
 	return (ecx >> 20) & 1;
 #else
 	return 0;
-#endif
+#endif /* defined(__amd64__) || defined(__x86_64__) */
 }
 
 /* CRC32C in hardware end */
-#endif /* !defined(SCTP_WITH_NO_CSUM) */
+#endif /* !defined(SCTP_WITH_NO_CSUM) && defined(CRC32CHW) */
 #endif /* defined(__FreeBSD__) && __FreeBSD_version >= 800000 */

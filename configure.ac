@@ -95,6 +95,14 @@ if test x$enable_inet6 = xyes; then
         AC_DEFINE(INET6, 1, [Support IPv6])
 fi
 
+AC_ARG_ENABLE(crc32chw,
+  AC_HELP_STRING( [--enable-crc32chw],
+                  [Support CRC32C in hardware @<:@default=yes@:>@]),
+    enable_crc32chw=$enableval,enable_crc32chw=yes)
+if test x$enable_crc32chw = xyes; then
+        AC_DEFINE(CRC32CHW, 1, [Support CRC32C in hardware])
+fi
+
 AC_ARG_ENABLE(netmap,
   AC_HELP_STRING( [--enable-netmap],
                   [Support NETMAP @<:@default=no@:>@]),
