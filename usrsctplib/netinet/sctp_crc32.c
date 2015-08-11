@@ -94,8 +94,10 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_crc32.c 235828 2012-05-23 11:26:28Z tu
  * File Name = ............................ 8x256_tables.c
  */
 
+#if defined(CRC32CHW)
 static uint8_t crc32c_hw_support(void);
 static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
+#endif /* defined(CRC32CHW) */
 
 static uint32_t sctp_crc_tableil8_o32[256] =
 {
@@ -767,7 +769,7 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 
 	if(sse42support == 2) {
 		sse42support = crc32c_hw_support();
-		SCTP_PRINTF("determing crc32c_hw_support - %u\n",sse42support);
+		SCTP_PRINTF("checking crc32c_hw_support - %u\n",sse42support);
 	}
 #endif
 
@@ -785,11 +787,9 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 			/* calculate CRC32 in hardware (SSE42) or software */
 #if defined(CRC32CHW)
 			if(sse42support) {
-				printf("crc in hardware\n");
 				base = crc32c_hw(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
 			} else {
 #endif /* defined(CRC32CHW) */
-				printf("crc in software\n");
 				base = calculate_crc32c(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
 #if defined(CRC32CHW)
 			}
