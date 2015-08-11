@@ -94,10 +94,10 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_crc32.c 235828 2012-05-23 11:26:28Z tu
  * File Name = ............................ 8x256_tables.c
  */
 
-#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 static uint8_t crc32c_hw_support(void);
 static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
-#endif /* defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__)) */
+#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 
 static uint32_t sctp_crc_tableil8_o32[256] =
 {
@@ -764,14 +764,14 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	uint32_t base;
 	struct mbuf *at;
 
-#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 	static uint8_t sse42support = 2;
 
 	if(sse42support == 2) {
 		sse42support = crc32c_hw_support();
 		SCTP_PRINTF("checking crc32c_hw_support - %u\n",sse42support);
 	}
-#endif /* defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__)) */
+#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 
 
 	base = 0xffffffff;
@@ -785,15 +785,15 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 	while (at != NULL) {
 		if ((SCTP_BUF_LEN(at) - offset) > 0) {
 			/* calculate CRC32 in hardware (SSE42) or software */
-#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 			if(sse42support) {
 				base = crc32c_hw(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
 			} else {
-#endif /* defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__)) */
+#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 				base = calculate_crc32c(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
-#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 			}
-#endif /* defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__)) */
+#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 		}
 		if (offset) {
 			/* we only offset once into the first mbuf */
@@ -845,7 +845,7 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #if !defined(SCTP_WITH_NO_CSUM)
 #if defined(__FreeBSD__) && __FreeBSD_version >= 800000
 #else
-#if defined(CRC32CHW) && (defined(__amd64__) || defined(__x86_64__))
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 
 /* CRC32C in hardware begin
 found here: http://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software */
@@ -1284,7 +1284,7 @@ static uint8_t crc32c_hw_support(void) {
 }
 
 /* CRC32C in hardware end */
-#endif /* defined(__amd64__) || defined(__x86_64__) */
+#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 
 
 #endif /* !defined(SCTP_WITH_NO_CSUM) */
