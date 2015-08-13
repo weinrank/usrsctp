@@ -21,17 +21,17 @@
 /* ########## CONFIG SECTION ########## */
 
 #if defined(MULTISTACK)
- const char *netmap_ifname = "valem:usrsctp1";
+static const char *netmap_ifname = "valem:usrsctp1";
 static const uint16_t multistack_port = 9899;
 #else
 static const char *netmap_ifname = "igb1";
 #endif
 
-static const char *netmap_mac_src = "00:1b:21:73:a2:e9";
+static const char *netmap_mac_src = "08:00:27:0d:af:91";
 static const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
 
 static const int netmap_ip_override = 0;
-static const char *netmap_ip_src = "10.0.1.201";
+static const char *netmap_ip_src = "192.168.57.2";
 static const char *netmap_ip_dst = "10.0.1.202";
 
 static const int netmap_debug_operation = 0; // print operation information
@@ -63,36 +63,58 @@ struct arp_packet {
 } __attribute__((__packed__));
 
 /* Compute the checksum of the given ip header. */
-static uint16_t ip_checksum(const void* vdata, size_t length) {
+static uint16_t ip_checksum(const void* vdata,size_t length) {
     // Cast the data pointer to one that can be indexed.
     char* data=(char*)vdata;
 
     // Initialise the accumulator.
-    uint32_t acc=0xffff;
+    uint64_t acc=0xffff;
 
-    // Handle complete 16-bit blocks.
-    for (size_t i=0;i+1<length;i+=2) {
-        uint16_t word;
-        memcpy(&word,data+i,2);
-        acc+=ntohs(word);
-        if (acc>0xffff) {
-            acc-=0xffff;
-        }
+    // Handle any partial block at the start of the data.
+    unsigned int offset=((uintptr_t)data)&3;
+    if (offset) {
+        size_t count=4-offset;
+        if (count>length) count=length;
+        uint32_t word=0;
+        memcpy(offset+(char*)&word,data,count);
+        acc+=ntohl(word);
+        data+=count;
+        length-=count;
     }
 
+    // Handle any complete 32-bit blocks.
+    char* data_end=data+(length&~3);
+    while (data!=data_end) {
+        uint32_t word;
+        memcpy(&word,data,4);
+        acc+=ntohl(word);
+        data+=4;
+    }
+    length&=3;
+
     // Handle any partial block at the end of the data.
-    if (length&1) {
-        uint16_t word=0;
-        memcpy(&word,data+length-1,1);
-        acc+=ntohs(word);
-        if (acc>0xffff) {
-            acc-=0xffff;
-        }
+    if (length) {
+        uint32_t word=0;
+        memcpy(&word,data,length);
+        acc+=ntohl(word);
+    }
+
+    // Handle deferred carries.
+    acc=(acc&0xffffffff)+(acc>>32);
+    while (acc>>16) {
+        acc=(acc&0xffff)+(acc>>16);
+    }
+
+    // If the data began at an odd byte address
+    // then reverse the byte order to compensate.
+    if (offset&1) {
+        acc=((acc&0xff00)>>8)|((acc&0x00ff)<<8);
     }
 
     // Return the checksum in network byte order.
     return htons(~acc);
 }
+
 
 
 /* ########## PACKET HANDLING SECTION ########## */
@@ -499,8 +521,11 @@ int usrsctp_netmap_init() {
 
     netmap_base->ms_sin.sin_family = AF_INET;
     netmap_base->ms_sin.sin_port = htons(multistack_port);
+#ifdef HAVE_SIN_LEN
+	netmap_base->ms_sin.sin_len = sizeof(struct sockaddr_in);
+#endif
     //sin.sin_addr.s_addr = htonl(g.src_ip.start);
-	if(!inet_pton(AF_INET, netmap_ip_src, &(netmap_base->ms_sin.sin_addr.s_addr))){
+	if(!inet_pton(AF_INET, netmap_ip_src, &(netmap_base->ms_sin.sin_addr))){
 		printf("error: invalid local address\n");
 		return -1;
 	}
