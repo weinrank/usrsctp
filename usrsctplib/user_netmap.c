@@ -27,16 +27,17 @@ const uint16_t multistack_port = 9899;
 const char *netmap_ifname = "igb1";
 #endif
 
-const char *netmap_mac_src = "00:1b:21:73:a2:e9";
+const char *netmap_mac_src = "08:00:27:0d:af:91";
 const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
 
 const int netmap_ip_override = 0;
-const char *netmap_ip_src = "10.0.1.201";
+const char *netmap_ip_src = "192.168.57.2";
+const char *felix = "0000000000000";
 const char *netmap_ip_dst = "10.0.1.202";
 
-const int netmap_debug_pkts = 0; // print information about ever incoming or outgoing packet
-const int netmap_debug_operation = 0; // print operation information
-const int netmap_debug_hexdump = 0; // hexdump ever packet
+static const int netmap_debug_pkts = 0; // print information about ever incoming or outgoing packet
+static const int netmap_debug_operation = 0; // print operation information
+static const int netmap_debug_hexdump = 0; // hexdump ever packet
 
 #define MAXLEN_MBUF_CHAIN 32
 
@@ -472,7 +473,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 		m_freem(m);
 		return;
 	}
-	
+
 
 #if defined(SCTP_WITH_NO_CSUM)
 	SCTP_STAT_INCR(sctps_recvnocrc);
@@ -689,10 +690,12 @@ int usrsctp_netmap_init() {
     }
     SCTP_PRINTF("multistack - socket\n");
 
+	printf("%s\n",felix);
+
     sin.sin_family = AF_INET;
     sin.sin_port = htons(multistack_port);
     //sin.sin_addr.s_addr = htonl(g.src_ip.start);
-	if(!inet_pton(AF_INET, netmap_ip_src, &sin.sin_addr.s_addr)){
+	if(!inet_pton(AF_INET, "192.168.57.2", &sin.sin_addr.s_addr)){
 		printf("error: invalid local address\n");
 		return -1;
 	}
@@ -768,4 +771,3 @@ int usrsctp_netmap_close() {
 }
 
 #endif //defined(NETMAP) || defined(MULTISTACK)
-
