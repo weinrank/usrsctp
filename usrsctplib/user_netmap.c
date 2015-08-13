@@ -21,40 +21,33 @@
 /* ########## CONFIG SECTION ########## */
 
 #if defined(MULTISTACK)
-const char *netmap_ifname = "valem:usrsctp1";
-const uint16_t multistack_port = 9899;
+ const char *netmap_ifname = "valem:usrsctp1";
+static const uint16_t multistack_port = 9899;
 #else
-const char *netmap_ifname = "igb1";
+static const char *netmap_ifname = "igb1";
 #endif
 
-const char *netmap_mac_src = "00:1b:21:73:a2:e9";
-const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
+static const char *netmap_mac_src = "00:1b:21:73:a2:e9";
+static const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
 
-const int netmap_ip_override = 0;
-const char *netmap_ip_src = "10.0.1.201";
-const char *netmap_ip_dst = "10.0.1.202";
+static const int netmap_ip_override = 0;
+static const char *netmap_ip_src = "10.0.1.201";
+static const char *netmap_ip_dst = "10.0.1.202";
 
-const int netmap_debug_pkts = 0; // print information about ever incoming or outgoing packet
-const int netmap_debug_operation = 0; // print operation information
-const int netmap_debug_hexdump = 0; // hexdump ever packet
+static const int netmap_debug_operation = 0; // print operation information
+
 
 #define MAXLEN_MBUF_CHAIN 32
 
 /* ########## CONFIG SECTION END ########## */
 
-static void 	usrsctp_netmap_hexdump(char *desc, void *addr, int len);
-static uint16_t usrsctp_netmap_ip_wrapsum(u_int32_t sum);
-static uint16_t usrsctp_netmap_ip_checksum(const void *data, uint16_t len, uint32_t sum);
-static void 	usrsctp_netmap_pkt_info_ethernet(char* buffer, uint32_t length, uint8_t recursive);
-static void 	usrsctp_netmap_pkt_info_ipv4(char *buffer, uint32_t length, uint8_t recursive);
-static void 	usrsctp_netmap_pkt_info_arp(char *buffer, uint32_t length, uint8_t recursive);
-static void 	usrsctp_netmap_pkt_info_sctp(char *buffer, uint32_t length, uint8_t recursive);
-static void 	usrsctp_netmap_pkt_info_udp(char *buffer, uint32_t length, uint8_t recursive);
-static void 	usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length);
-static void 	usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length);
-static void 	usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port);
-static void 	usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *ip_header);
-static void 	usrsctp_netmap_handle_arp(char *buffer, uint32_t length);
+
+static uint16_t ip_checksum(const void *vdata, size_t len);
+static void 	handle_ethernet(char* buffer, uint32_t length);
+static void 	handle_ipv4(char *buffer, uint32_t length);
+static void 	handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port);
+static void 	handle_udp(char *buffer, uint32_t length, struct ip *ip_header);
+static void 	handle_arp(char *buffer, uint32_t length);
 
 
 struct arp_packet {
@@ -69,217 +62,42 @@ struct arp_packet {
 	uint32_t 	dst_ip;
 } __attribute__((__packed__));
 
-// dump packet for wireshark etc
-// stolen from http://stackoverflow.com/questions/7775991/how-to-get-hexdump-of-a-structure-data
-static void usrsctp_netmap_hexdump (char *desc, void *addr, int len) {
-	int i;
-	unsigned char buff[17];
-	unsigned char *pc = (unsigned char*)addr;
+/* Compute the checksum of the given ip header. */
+static uint16_t ip_checksum(const void* vdata, size_t length) {
+    // Cast the data pointer to one that can be indexed.
+    char* data=(char*)vdata;
 
-	// Output description if given.
-	if (desc != NULL)
-		printf ("%s:\n", desc);
+    // Initialise the accumulator.
+    uint32_t acc=0xffff;
 
-	// Process every byte in the data.
-	for (i = 0; i < len; i++) {
-		// Multiple of 16 means new line (with line offset).
-
-		if ((i % 16) == 0) {
-			// Just don't print ASCII for the zeroth line.
-			if (i != 0)
-				printf ("  %s\n", buff);
-
-			// Output the offset.
-			printf ("  %04x ", i);
-		}
-
-		// Now the hex code for the specific character.
-		printf (" %02x", pc[i]);
-
-		// And store a printable ASCII character for later.
-		if ((pc[i] < 0x20) || (pc[i] > 0x7e))
-			buff[i % 16] = '.';
-		else
-			buff[i % 16] = pc[i];
-		buff[(i % 16) + 1] = '\0';
-	}
-
-	// Pad out last line if not exactly 16 characters.
-	while ((i % 16) != 0) {
-		printf ("   ");
-		i++;
-	}
-
-	// And print the final ASCII bit.
-	printf ("  %s\n", buff);
-}
-
-// for ip checksum
-// stolen from pkt-gen.c
-static uint16_t usrsctp_netmap_ip_wrapsum(u_int32_t sum) {
-	sum = ~sum & 0xFFFF;
-	return (htons(sum));
-}
-
-// compute the checksum of the given ip header.
-// stolen from netmap pkt-gen.c
-static uint16_t usrsctp_netmap_ip_checksum(const void *data, uint16_t len, uint32_t sum) {
-	const uint8_t *addr = data;
-	uint32_t i;
-
-	/* Checksum all the pairs of bytes first... */
-	for (i = 0; i < (len & ~1U); i += 2) {
-		sum += (u_int16_t)ntohs(*((u_int16_t *)(addr + i)));
-		if (sum > 0xFFFF)
-			sum -= 0xFFFF;
-	}
-	/*
-	 * If there's a single byte left over, checksum it, too.
-	 * Network byte order is big-endian, so the remaining byte is
-	 * the high byte.
-	 */
-	if (i < len) {
-		sum += addr[i] << 8;
-		if (sum > 0xFFFF)
-			sum -= 0xFFFF;
-	}
-	return sum;
-}
-
-/* ########## PACKET INFO SECTION ########## */
-
-// print information about ethernet packet
-static void usrsctp_netmap_pkt_info_ethernet(char* buffer, uint32_t length, uint8_t recursive) {
-	struct ether_header *eth_header;
-
-	SCTP_PRINTF("netmap packet info - length: %u\n",length);
-	if (length < sizeof(struct ether_header)) {
-        SCTP_PRINTF("error: packet too short for ethernet header!\n");
-        return;
+    // Handle complete 16-bit blocks.
+    for (size_t i=0;i+1<length;i+=2) {
+        uint16_t word;
+        memcpy(&word,data+i,2);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
     }
 
-    eth_header = (struct ether_header*)buffer;
-    SCTP_PRINTF("\t## MAC");
-    SCTP_PRINTF("\t%s", ether_ntoa((struct ether_addr *)eth_header->ether_shost));
-    SCTP_PRINTF(" -> ");
-    SCTP_PRINTF("%s\n", ether_ntoa((struct ether_addr *)eth_header->ether_dhost));
+    // Handle any partial block at the end of the data.
+    if (length&1) {
+        uint16_t word=0;
+        memcpy(&word,data+length-1,1);
+        acc+=ntohs(word);
+        if (acc>0xffff) {
+            acc-=0xffff;
+        }
+    }
 
-    if(recursive) {
-	    switch(htons(eth_header->ether_type)) {
-
-	    	/* IP */
-	    	case ETHERTYPE_IP:
-			    usrsctp_netmap_pkt_info_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header),recursive);
-			    break;
-
-			/* ARP */
-			case ETHERTYPE_ARP:
-				usrsctp_netmap_pkt_info_arp(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header),recursive);
-				break;
-
-			default:
-				SCTP_PRINTF("ethernet - uknown ether_type\n");
-				break;
-		}
-	}
-}
-
-// print arp info
-static void usrsctp_netmap_pkt_info_arp(char *buffer, uint32_t length, uint8_t recursive) {
-	struct arp_packet *arp_packet;
-
-	if (length < sizeof(struct arp_packet)) {
-		SCTP_PRINTF("error: packet too short for arp packet!\n");
-		return;
-	}
-
-	arp_packet = (struct arp_packet*)buffer;
-	SCTP_PRINTF("\t## ARP");
-
-	switch(arp_packet->operation) {
-
-		// request
-		case htons(1):
-			SCTP_PRINTF("\tREQUEST - ");
-			SCTP_PRINTF(" %s", inet_ntoa(*(struct in_addr*)&arp_packet->src_ip));
-			SCTP_PRINTF(" requests");
-			SCTP_PRINTF(" %s\n", inet_ntoa(*(struct in_addr*)&arp_packet->dst_ip));
-			break;
-
-		// response
-		case htons(2):
-			SCTP_PRINTF("\tRESPONSE - ");
-			SCTP_PRINTF(" %s", inet_ntoa(*(struct in_addr*)&arp_packet->src_ip));
-			SCTP_PRINTF(" responses");
-			SCTP_PRINTF(" %s\n", inet_ntoa(*(struct in_addr*)&arp_packet->dst_ip));
-			break;
-	}
-}
-
-// print ipv4 info
-static void usrsctp_netmap_pkt_info_ipv4(char *buffer, uint32_t length, uint8_t recursive) {
-	struct ip *ip_header;
-	uint16_t ip_header_len;
-
-	if(length < sizeof(struct ip)) {
-		SCTP_PRINTF("error: packet too short for IP header!\n");
-		return;
-	}
-	ip_header = (struct ip*)buffer;
-    ip_header_len = ((ip_header->ip_hl & 0xf) * 4);
-
-    SCTP_PRINTF("\t## IP4");
-    SCTP_PRINTF("\t%s", inet_ntoa(ip_header->ip_src));
-    SCTP_PRINTF(" -> ");
-    SCTP_PRINTF("%s\n", inet_ntoa(ip_header->ip_dst));
-
-    if(recursive) {
-	    switch (ip_header->ip_p) {
-		    case IPPROTO_SCTP:
-		        usrsctp_netmap_pkt_info_sctp(buffer +ip_header_len, length - ip_header_len, recursive);
-		        break;
-		    case IPPROTO_UDP:
-		        usrsctp_netmap_pkt_info_udp(buffer + ip_header_len, length - ip_header_len, recursive);
-		        break;
-		    default:
-		        printf("\tunknown protocol: %u\n",ip_header->ip_p);
-	    }
-	}
-}
-
-// print sctp info
-static void usrsctp_netmap_pkt_info_sctp(char *buffer, uint32_t length, uint8_t recursive) {
-	struct sctphdr *sctp_header;
-
-	if (length < sizeof(struct sctphdr)) {
-		SCTP_PRINTF("error: packet too short for SCTP header!\n");
-		return;
-	}
-	sctp_header = (struct sctphdr*)buffer;
-	SCTP_PRINTF("\t## SCTP\n");
-}
-
-// print udp info
-static void usrsctp_netmap_pkt_info_udp(char *buffer, uint32_t length, uint8_t recursive) {
-	struct udphdr *udp_header;
-
-	if (length < sizeof(struct udphdr)) {
-		SCTP_PRINTF("error: packet too short for UDP header!\n");
-		return;
-	}
-	udp_header = (struct udphdr*)buffer;
-
-	SCTP_PRINTF("\t## UDP");
-    SCTP_PRINTF("\t:%u", ntohs(udp_header->uh_sport));
-    SCTP_PRINTF(" -> ");
-    SCTP_PRINTF(":%u\n", ntohs(udp_header->uh_dport));
-    //SCTP_PRINTF(" - length %u\n", ntohs(udp_header->uh_ulen));
+    // Return the checksum in network byte order.
+    return htons(~acc);
 }
 
 
 /* ########## PACKET HANDLING SECTION ########## */
 
-static void usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length) {
+static void handle_ethernet(char* buffer, uint32_t length) {
 	struct ether_header *eth_header;
 
 	if (length < sizeof(struct ether_header)) {
@@ -293,18 +111,18 @@ static void usrsctp_netmap_handle_ethernet(char* buffer, uint32_t length) {
 
     	// handle ARP requests
     	case(ETHERTYPE_ARP):
-	    	usrsctp_netmap_handle_arp(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
+	    	handle_arp(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
     		break;
 
     	// handle IP packets
     	case(ETHERTYPE_IP):
-    		usrsctp_netmap_handle_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
+    		handle_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
     		break;
     }
 }
 
 // handle ARP requests
-static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
+static void handle_arp(char *buffer, uint32_t length) {
 
 	struct in_addr ip_local;
 	struct arp_packet *arp_request;
@@ -374,7 +192,7 @@ static void usrsctp_netmap_handle_arp(char *buffer, uint32_t length) {
 }
 
 // handle ip
-static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
+static void handle_ipv4(char *buffer, uint32_t length) {
 	struct ip *ip_header;
 	uint16_t ip_header_length;
 	uint16_t ip_total_length;
@@ -395,17 +213,17 @@ static void usrsctp_netmap_handle_ipv4(char *buffer, uint32_t length) {
 
 	switch (ip_header->ip_p) {
 	    case IPPROTO_SCTP:
-	        usrsctp_netmap_handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header, 0);
+	        handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header, 0);
 	        break;
 	    case IPPROTO_UDP:
-	        usrsctp_netmap_handle_udp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
+	        handle_udp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
 	        break;
     }
 
 }
 
 // handle sctp packets
-static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port) {
+static void handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port) {
 
 	struct sockaddr_in src, dst;
 	struct mbuf *m;
@@ -472,7 +290,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 		m_freem(m);
 		return;
 	}
-	
+
 
 #if defined(SCTP_WITH_NO_CSUM)
 	SCTP_STAT_INCR(sctps_recvnocrc);
@@ -497,7 +315,7 @@ static void usrsctp_netmap_handle_sctp(char *buffer, uint32_t length, struct ip 
 }
 
 // handle udp
-static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *ip_header) {
+static void handle_udp(char *buffer, uint32_t length, struct ip *ip_header) {
 	struct udphdr *udp_header;
 
 	if(length < sizeof(struct udphdr)) {
@@ -508,7 +326,7 @@ static void usrsctp_netmap_handle_udp(char *buffer, uint32_t length, struct ip *
 	udp_header = (struct udphdr*)buffer;
 
 	if (ntohs(udp_header->uh_dport) == SCTP_BASE_SYSCTL(sctp_udp_tunneling_port)) {
-		usrsctp_netmap_handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header, udp_header->uh_sport);
+		handle_sctp(buffer + sizeof(struct udphdr),length - sizeof(struct udphdr),ip_header, udp_header->uh_sport);
 	} else {
 		SCTP_PRINTF("netmap - discarding udp packet - wrong port: %u\n",ntohs(udp_header->uh_dport));
 	}
@@ -559,15 +377,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	            	SCTP_PRINTF("netmap - incoming packet <<<\n");
 	            }
 
-	            if(netmap_debug_pkts) {
-	            	usrsctp_netmap_pkt_info_ethernet(buf,buf_len,1);
-	            }
-
-	            if(netmap_debug_hexdump) {
-	            	usrsctp_netmap_hexdump("SCTP <<< ",buf,buf_len);
-	            }
-
-	            usrsctp_netmap_handle_ethernet(buf,buf_len);
+	            handle_ethernet(buf,buf_len);
 
 	            ring->cur = nm_ring_next(ring, cur);
 	            ring->head = ring->cur;
@@ -631,18 +441,10 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 		}
 		ip_header->ip_len = htons(ip_header->ip_len);
 		ip_header->ip_off = 0;
-		ip_header->ip_sum = usrsctp_netmap_ip_wrapsum(usrsctp_netmap_ip_checksum(ip_header, sizeof(struct ip), 0));
+		ip_header->ip_sum = ip_checksum(ip_header, sizeof(struct ip));
 
 		if(netmap_debug_operation) {
 			SCTP_PRINTF("netmap - packet >>> %u byte \n",slot->len);
-		}
-
-		if(netmap_debug_pkts) {
-			usrsctp_netmap_pkt_info_ethernet(nmBuf,slot->len,1);
-		}
-
-		if(netmap_debug_hexdump) {
-			usrsctp_netmap_hexdump("SCTP >>> ",nmBuf,slot->len);
 		}
 
 		cur = nm_ring_next(tx_ring, cur);
@@ -661,17 +463,19 @@ int usrsctp_netmap_init() {
 	struct sctp_netmap_base* netmap_base;
 	netmap_base = &SCTP_BASE_VAR(netmap_base);
 
+	// null struct and copy interace name
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
 	strcpy(netmap_base->req.nr_name, netmap_ifname);
-	netmap_base->req.nr_version = NETMAP_API;
-    netmap_base->req.nr_flags = NR_REG_ALL_NIC;
 
     SCTP_PRINTF("netmap - local UDP port: %u\n",SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 
 	if((netmap_base->fd = open("/dev/netmap", O_RDWR)) == -1) {
-		SCTP_PRINTF("netmap - open failed for: %s\n",netmap_base->req.nr_name);
+		SCTP_PRINTF("netmap - open failed for: %s - run as root?\n",netmap_base->req.nr_name);
 		return -1;
 	}
+
+	netmap_base->req.nr_version = NETMAP_API;
+    //netmap_base->req.nr_flags = NR_REG_ALL_NIC;
 
 	if (ioctl(netmap_base->fd, NIOCREGIF, &netmap_base->req)) {
 		SCTP_PRINTF("netmap - ioctl NIOCREGIF failed\n");
@@ -680,36 +484,39 @@ int usrsctp_netmap_init() {
 
 #if defined(MULTISTACK)
     SCTP_PRINTF("netmap - running in MULTISTACK mode\n");
-    struct sockaddr_in sin;
 
-    //so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP);
-    if ((netmap_base->so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
+	memset(&netmap_base->ms_sin,0,sizeof(struct sockaddr_in));
+#ifdef HAVE_SIN_LEN
+	netmap_base->ms_sin.sin_len = sizeof(struct sockaddr_in);
+#endif
+
+
+    if ((netmap_base->ms_so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
         perror("socket");
         return -1;
     }
     SCTP_PRINTF("multistack - socket\n");
 
-    sin.sin_family = AF_INET;
-    sin.sin_port = htons(multistack_port);
+    netmap_base->ms_sin.sin_family = AF_INET;
+    netmap_base->ms_sin.sin_port = htons(multistack_port);
     //sin.sin_addr.s_addr = htonl(g.src_ip.start);
-	if(!inet_pton(AF_INET, netmap_ip_src, &sin.sin_addr.s_addr)){
+	if(!inet_pton(AF_INET, netmap_ip_src, &(netmap_base->ms_sin.sin_addr.s_addr))){
 		printf("error: invalid local address\n");
 		return -1;
 	}
-    if (bind(netmap_base->so, (struct sockaddr *)&sin, sizeof(sin))) {
+    if (bind(netmap_base->ms_so, (struct sockaddr *)&(netmap_base->ms_sin), sizeof(struct sockaddr_in))) {
         perror("multistack - bind");
-        close(netmap_base->so);
+        close(netmap_base->ms_so);
         return -1;
     }
     SCTP_PRINTF("multistack - bind\n");
-    strncpy(netmap_base->msr.mr_name, netmap_base->req.nr_name, sizeof(netmap_base->msr.mr_name));
-    netmap_base->msr.mr_cmd = MULTISTACK_BIND;
-    netmap_base->msr.mr_sin = sin;
-    netmap_base->msr.mr_proto = IPPROTO_UDP;
 
-    printf("%p\n",&netmap_base->msr);
+	strcpy(netmap_base->ms_req.mr_name, netmap_ifname);
+    netmap_base->ms_req.mr_cmd = MULTISTACK_BIND;
+    netmap_base->ms_req.mr_sin = netmap_base->ms_sin;
+    netmap_base->ms_req.mr_proto = IPPROTO_UDP;
 
-    if (ioctl(netmap_base->fd, NIOCCONFIG, &netmap_base->msr) == -1) {
+    if (ioctl(netmap_base->fd, NIOCCONFIG, &(netmap_base->ms_req)) == -1) {
         perror("multistack - ioctl");
         return -1;
     }
@@ -737,14 +544,14 @@ int usrsctp_netmap_close() {
 	}
 
 #ifdef MULTISTACK
-	SCTP_BASE_VAR(netmap_base.msr.mr_cmd) = MULTISTACK_UNBIND;
-	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.msr)) == -1) {
+	SCTP_BASE_VAR(netmap_base.ms_req.mr_cmd) = MULTISTACK_UNBIND;
+	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.ms_req)) == -1) {
 		perror("multistack - ioctl");
 		SCTP_PRINTF("raus\n");
 		return -1;
 	}
 
-	if (close(SCTP_BASE_VAR(netmap_base.so))) {
+	if (close(SCTP_BASE_VAR(netmap_base.ms_so))) {
 		perror("multistack - close");
 		return -1;
 	}
@@ -768,4 +575,3 @@ int usrsctp_netmap_close() {
 }
 
 #endif //defined(NETMAP) || defined(MULTISTACK)
-

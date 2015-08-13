@@ -43,8 +43,9 @@ struct sctp_netmap_base {
 	char *mem;
 	struct netmap_if *iface;
 #if defined(MULTISTACK)
-    int so;
-    struct msreq msr;
+    int ms_so;
+    struct msreq ms_req;
+	struct sockaddr_in ms_sin;
 #endif /* defined(MULTISTACK) */
 };
 
