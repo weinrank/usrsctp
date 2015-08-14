@@ -420,14 +420,14 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	struct ip *ip_header;
 	struct netmap_slot *slot;
 	struct netmap_ring *tx_ring;
-	char *nmBuf;
+	char *tx_slot_buffer;
 	uint32_t cur, ip_pkt_len;
 
 	ip_pkt_len = sctp_calculate_len(o_pak);
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
 
 	// return if packet is too big
-	if(tx_ring->nr_buf_size < ip_pkt_len + sizeof(struct ether_header)) {
+	if(tx_ring->nr_buf_size < (ip_pkt_len + sizeof(struct ether_header))) {
 		*result = ENOBUFS;
 		return;
 	}
@@ -437,20 +437,20 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 		slot = &tx_ring->slot[cur];
 		slot->len = sizeof(struct ether_header)+ip_pkt_len;
 
-		nmBuf = NETMAP_BUF(tx_ring, slot->buf_idx);
+		tx_slot_buffer = NETMAP_BUF(tx_ring, slot->buf_idx);
 
-		memset(nmBuf,0,sizeof(struct ether_header)+ip_pkt_len);
+		memset(tx_slot_buffer,0,sizeof(struct ether_header)+ip_pkt_len);
 		//m_pullup(o_pak,ip_pkt_len);
-		m_copydata(o_pak, 0, ip_pkt_len, nmBuf + sizeof(struct ether_header));
+		m_copydata(o_pak, 0, ip_pkt_len, tx_slot_buffer + sizeof(struct ether_header));
 
 		// fill ethernet header
-		eth_header = (struct ether_header*)nmBuf;
+		eth_header = (struct ether_header*)tx_slot_buffer;
 		eth_header->ether_type = htons(ETHERTYPE_IP);
 		memcpy(eth_header->ether_shost, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 		memcpy(eth_header->ether_dhost, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
 		// correct ip header len
-		ip_header = (struct ip*)(nmBuf + sizeof(struct ether_header));
+		ip_header = (struct ip*)(tx_slot_buffer + sizeof(struct ether_header));
 		// override outgoing ip?
 		if(netmap_ip_override) {
 			inet_pton(AF_INET, netmap_ip_dst, &ip_header->ip_dst);
@@ -498,6 +498,10 @@ int usrsctp_netmap_init() {
 		SCTP_PRINTF("netmap - ioctl NIOCREGIF failed\n");
 		return -1;
 	}
+
+	// prepare outgoing ethernet header
+
+
 
 #if defined(MULTISTACK)
     SCTP_PRINTF("netmap - running in MULTISTACK mode\n");
