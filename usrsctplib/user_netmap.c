@@ -41,15 +41,15 @@ static const int netmap_debug_operation = 0; // print operation information
 
 /* ########## CONFIG SECTION END ########## */
 
+static uint16_t ip_checksum(const char *data, size_t length);
+static void 	handle_ethernet(const char* buffer, size_t length);
+static void 	handle_ipv4(const char *buffer, size_t length);
+static void 	handle_sctp(const char *buffer, size_t length, struct ip *ip_header, uint16_t udp_encaps_port);
+static void 	handle_udp(const char *buffer, size_t length, struct ip *ip_header);
+static void 	handle_arp(const char *buffer, size_t length);
 
-static uint16_t ip_checksum(const void *vdata, size_t len);
-static void 	handle_ethernet(char* buffer, uint32_t length);
-static void 	handle_ipv4(char *buffer, uint32_t length);
-static void 	handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port);
-static void 	handle_udp(char *buffer, uint32_t length, struct ip *ip_header);
-static void 	handle_arp(char *buffer, uint32_t length);
 
-
+#pragma pack(push,1) // disable padding
 struct arp_packet {
 	uint16_t 	hardware_type;
 	uint16_t 	protocol_type;
@@ -60,13 +60,12 @@ struct arp_packet {
 	uint32_t 	src_ip;
 	uint8_t 	dst_mac[6];
 	uint32_t 	dst_ip;
-} __attribute__((__packed__));
+};
+#pragma pack(pop)
+
 
 /* Compute the checksum of the given ip header. */
-static uint16_t ip_checksum(const void* vdata,size_t length) {
-    // Cast the data pointer to one that can be indexed.
-    char* data=(char*)vdata;
-
+static uint16_t ip_checksum(const char* data,size_t length) {
     // Initialise the accumulator.
     uint64_t acc=0xffff;
 
@@ -83,7 +82,7 @@ static uint16_t ip_checksum(const void* vdata,size_t length) {
     }
 
     // Handle any complete 32-bit blocks.
-    char* data_end=data+(length&~3);
+    const char* data_end=data+(length&~3);
     while (data!=data_end) {
         uint32_t word;
         memcpy(&word,data,4);
@@ -119,7 +118,7 @@ static uint16_t ip_checksum(const void* vdata,size_t length) {
 
 /* ########## PACKET HANDLING SECTION ########## */
 
-static void handle_ethernet(char* buffer, uint32_t length) {
+static void handle_ethernet(const char* buffer, size_t length) {
 	struct ether_header *eth_header;
 
 	if (length < sizeof(struct ether_header)) {
@@ -143,8 +142,8 @@ static void handle_ethernet(char* buffer, uint32_t length) {
     }
 }
 
-// handle ARP requests
-static void handle_arp(char *buffer, uint32_t length) {
+// handle ARP requests and respond
+static void handle_arp(const char *buffer, size_t length) {
 
 	struct in_addr ip_local;
 	struct arp_packet *arp_request;
@@ -152,11 +151,11 @@ static void handle_arp(char *buffer, uint32_t length) {
 	struct ether_header *eth_header;
 	struct netmap_slot *slot;
 	struct netmap_ring *tx_ring;
-	char *nmBuf;
+	char *tx_slot_buffer;
 	uint32_t cur;
 
 	if(length < sizeof(struct arp_packet)) {
-        SCTP_PRINTF("error: packet too short for arp_packet!\n");
+        SCTP_PRINTF("error: packetsize too small for arp!\n");
         return;
 	}
 
@@ -168,38 +167,36 @@ static void handle_arp(char *buffer, uint32_t length) {
 		return;
 	}
 
-	// XXX performance? valid?
+	// Is this request for me? // XXX performance? valid?
+
 	if(!memcmp(&arp_request->dst_ip,&ip_local,4)) {
 
 		tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
-
 		cur = tx_ring->cur;
+
 		if(!nm_ring_empty(tx_ring)) {
 			slot = &tx_ring->slot[cur];
 			slot->len = sizeof(struct ether_header)+sizeof(struct arp_packet);
 
-			nmBuf = NETMAP_BUF(tx_ring, slot->buf_idx);
-
-			//memset(nmBuf,0,sizeof(struct ether_header)+ip_pkt_len);
+			tx_slot_buffer = NETMAP_BUF(tx_ring, slot->buf_idx);
+			memset(tx_slot_buffer,0,sizeof(struct ether_header)+sizeof(struct ether_header));
 
 			// build ARP request - quite ugly..
-			arp_response = (struct arp_packet*)(nmBuf + sizeof(struct ether_header));
+			arp_response = (struct arp_packet*)(tx_slot_buffer + sizeof(struct ether_header));
 			arp_response->hardware_type	= htons(1);
 			arp_response->hardware_type	= htons(1);
 			arp_response->protocol_type	= htons(2048);
 			arp_response->hardware_size	= 6;
 			arp_response->protocol_size	= 4;
 			arp_response->operation		= htons(2);
-			//arp_request.src_mac			=
-			arp_response->src_ip			= *(uint32_t*)&ip_local;
-			//arp_request.dst_mac			= arp_packet->src_mac;
-			arp_response->dst_ip			= arp_request->src_ip;
+			arp_response->src_ip		= *(uint32_t*)&ip_local;
+			arp_response->dst_ip		= arp_request->src_ip;
 			memcpy(arp_response->src_mac, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 			memcpy(arp_response->dst_mac, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
 
 			// fill ethernet header
-			eth_header = (struct ether_header*)nmBuf;
+			eth_header = (struct ether_header*)tx_slot_buffer;
 			eth_header->ether_type = htons(ETHERTYPE_ARP);
 			memcpy(eth_header->ether_shost, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 			memcpy(eth_header->ether_dhost, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
@@ -214,13 +211,13 @@ static void handle_arp(char *buffer, uint32_t length) {
 }
 
 // handle ip
-static void handle_ipv4(char *buffer, uint32_t length) {
+static void handle_ipv4(const char *buffer, size_t length) {
 	struct ip *ip_header;
 	uint16_t ip_header_length;
 	uint16_t ip_total_length;
 
 	if(length < sizeof(struct ip)) {
-		SCTP_PRINTF("error: packet too short for ip_packet!\n");
+		SCTP_PRINTF("error: packetsize too small for an ip packet!\n");
 		return;
 	}
 
@@ -245,24 +242,20 @@ static void handle_ipv4(char *buffer, uint32_t length) {
 }
 
 // handle sctp packets
-static void handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uint16_t udp_encaps_port) {
+static void handle_sctp(const char *buffer, size_t length, struct ip *ip_header, uint16_t udp_encaps_port) {
 
 	struct sockaddr_in src, dst;
 	struct mbuf *m;
-	struct sctphdr *sh;
-	struct sctp_chunkhdr *ch;
+	struct sctphdr *sctp_header;
+	struct sctp_chunkhdr *chunk_header;
 	//struct ip* ip_header;
 	int ecn = 0;
 #if !defined(SCTP_WITH_NO_CSUM)
 	int compute_crc = 1;
 #endif
 
-	//SCTP_PRINTF(" <<< SCTP - length: %u\n",length);
-
 	memset(&src, 0, sizeof(struct sockaddr_in));
 	memset(&dst, 0, sizeof(struct sockaddr_in));
-
-	//ip_header = (struct ip*)buffer;
 
 	SCTP_STAT_INCR(sctps_recvpackets);
 	SCTP_STAT_INCR_COUNTER64(sctps_inpackets);
@@ -281,27 +274,29 @@ static void handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uin
 		}
 	}
 
-	sh = mtod(m, struct sctphdr *);;
-	ch = (struct sctp_chunkhdr *)((caddr_t)sh + sizeof(struct sctphdr));
+	sctp_header = mtod(m, struct sctphdr *); // doppeltes simikolon
+	chunk_header = (struct sctp_chunkhdr *)((unsigned char *)sctp_header + sizeof(struct sctphdr));
 
 
 	if (ip_header->ip_tos != 0) {
 		ecn = ip_header->ip_tos & 0x02;
 	}
 
+	// destination
 	dst.sin_family = AF_INET;
 #ifdef HAVE_SIN_LEN
 	dst.sin_len = sizeof(struct sockaddr_in);
 #endif
 	dst.sin_addr = ip_header->ip_dst;
-	dst.sin_port = sh->dest_port;
+	dst.sin_port = sctp_header->dest_port;
 
+	// source
 	src.sin_family = AF_INET;
 #ifdef HAVE_SIN_LEN
 	src.sin_len = sizeof(struct sockaddr_in);
 #endif
 	src.sin_addr = ip_header->ip_src;
-	src.sin_port = sh->src_port;
+	src.sin_port = sctp_header->src_port;
 
 	/* SCTP does not allow broadcasts or multicasts */
 	if (IN_MULTICAST(ntohl(dst.sin_addr.s_addr))) {
@@ -325,7 +320,7 @@ static void handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uin
 	}
 #endif
 
-	sctp_common_input_processing(&m, 0, sizeof(struct sctphdr), length, (struct sockaddr *)&src, (struct sockaddr *)&dst, sh, ch,
+	sctp_common_input_processing(&m, 0, sizeof(struct sctphdr), length, (struct sockaddr *)&src, (struct sockaddr *)&dst, sctp_header, chunk_header,
 #if !defined(SCTP_WITH_NO_CSUM)
 	                             1,
 #endif
@@ -337,7 +332,7 @@ static void handle_sctp(char *buffer, uint32_t length, struct ip *ip_header, uin
 }
 
 // handle udp
-static void handle_udp(char *buffer, uint32_t length, struct ip *ip_header) {
+static void handle_udp(const char *buffer, size_t length, struct ip *ip_header) {
 	struct udphdr *udp_header;
 
 	if(length < sizeof(struct udphdr)) {
@@ -463,7 +458,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 		}
 		ip_header->ip_len = htons(ip_header->ip_len);
 		ip_header->ip_off = 0;
-		ip_header->ip_sum = ip_checksum(ip_header, sizeof(struct ip));
+		ip_header->ip_sum = ip_checksum((char *)ip_header, sizeof(struct ip));
 
 		if(netmap_debug_operation) {
 			SCTP_PRINTF("netmap - packet >>> %u byte \n",slot->len);
