@@ -47,6 +47,8 @@ libusrsctp_la_SOURCES  = user_atomic.h \
                          user_uma.h \
                          user_netmap.h \
                          user_netmap.c \
+                         netmap_debug.c \
+                         netmap_debug.h \
                          netinet/sctp.h \
                          netinet/sctp_asconf.c netinet/sctp_asconf.h \
                          netinet/sctp_auth.c netinet/sctp_auth.h \

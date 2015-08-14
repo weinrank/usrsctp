@@ -49,7 +49,6 @@ struct sctp_netmap_base {
 #endif /* defined(MULTISTACK) */
 };
 
-void usrsctp_netmap_pkt_info(char* buffer, uint32_t length);
 void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak);
 void *usrsctp_netmap_recv_function(void *arg);
 int usrsctp_netmap_init();

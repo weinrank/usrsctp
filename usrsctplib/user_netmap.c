@@ -1,7 +1,7 @@
-
-#include <stdio.h>
+#define NETMAP_DEBUG
 
 #if defined(NETMAP) || defined(MULTISTACK)
+#include <stdio.h>
 #include <string.h>
 #include <stdint.h>
 #include <fcntl.h>
@@ -12,13 +12,16 @@
 #include <user_mbuf.h>
 #include <netinet/sctp_pcb.h>
 #include <netinet/sctputil.h>
-#include <user_netmap.h>
 #include <arpa/inet.h>
 #include <sys/poll.h>
 #include <netinet/udp.h>
 #include <netinet/sctp_input.h>
 
 /* ########## CONFIG SECTION ########## */
+
+#ifdef NETMAP_DEBUG
+#include "netmap_debug.h"
+#endif
 
 #if defined(MULTISTACK)
 static const char *netmap_ifname = "valem:usrsctp1";
@@ -27,12 +30,12 @@ static const uint16_t multistack_port = 9899;
 static const char *netmap_ifname = "igb1";
 #endif
 
-static const char *netmap_mac_src = "08:00:27:0d:af:91";
-static const char *netmap_mac_dst = "00:1b:21:75:dc:7d";
+static const char *netmap_mac_src = "08:00:27:12:0d:e1";
+static const char *netmap_mac_dst = "0a:00:27:00:00:01";
 
 static const int netmap_ip_override = 0;
 static const char *netmap_ip_src = "192.168.57.2";
-static const char *netmap_ip_dst = "10.0.1.202";
+static const char *netmap_ip_dst = "192.168.57.1";
 
 static const int netmap_debug_operation = 0; // print operation information
 
@@ -358,9 +361,9 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	uint32_t ring_index;
 	uint32_t cur;
 	uint32_t buf_idx;
-	uint32_t buf_len;
+	size_t rx_slot_length;
 	uint32_t rx_ring_index;
-	char *buf;
+	char *rx_slot_buffer;
 
 	if(netmap_debug_operation) {
 		SCTP_PRINTF("netmap - receive thread started\n");
@@ -387,14 +390,20 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	        if (!nm_ring_empty(ring)) {
 	            cur = ring->cur;
 	            buf_idx = ring->slot[cur].buf_idx;
-	            buf = NETMAP_BUF(ring, buf_idx);
-	            buf_len = ring->slot[cur].len;
+	            rx_slot_buffer = NETMAP_BUF(ring, buf_idx);
+	            rx_slot_length = ring->slot[cur].len;
+
+
 
 	            if(netmap_debug_operation) {
 	            	SCTP_PRINTF("netmap - incoming packet <<<\n");
 	            }
 
-	            handle_ethernet(buf,buf_len);
+				#if defined(NETMAP_DEBUG)
+					netmap_pktinfo(rx_slot_buffer,rx_slot_length,1,1);
+				#endif
+
+	            handle_ethernet(rx_slot_buffer,rx_slot_length);
 
 	            ring->cur = nm_ring_next(ring, cur);
 	            ring->head = ring->cur;
@@ -421,7 +430,8 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	struct netmap_slot *slot;
 	struct netmap_ring *tx_ring;
 	char *tx_slot_buffer;
-	uint32_t cur, ip_pkt_len;
+	uint32_t cur;
+	size_t ip_pkt_len;
 
 	ip_pkt_len = sctp_calculate_len(o_pak);
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
@@ -464,6 +474,11 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 			SCTP_PRINTF("netmap - packet >>> %u byte \n",slot->len);
 		}
 
+#if defined(NETMAP_DEBUG)
+		printf("DEBUG!\n");
+		netmap_pktinfo(tx_slot_buffer,ip_pkt_len,1,1);
+#endif
+
 		cur = nm_ring_next(tx_ring, cur);
 		tx_ring->head = tx_ring->cur = cur;
 		ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
@@ -498,6 +513,10 @@ int usrsctp_netmap_init() {
 		SCTP_PRINTF("netmap - ioctl NIOCREGIF failed\n");
 		return -1;
 	}
+
+	#if defined(NETMAP_DEBUG)
+		printf("DEBUG!\n");
+	#endif
 
 	// prepare outgoing ethernet header
 
