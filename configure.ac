@@ -113,7 +113,7 @@ fi
 
 AC_ARG_ENABLE(netmap-debug,
   AC_HELP_STRING( [--enable-netmap-debug],
-                  [Support NETMAP @<:@default=no@:>@]),
+                  [Support NETMAP_DEBUG @<:@default=no@:>@]),
     enable_netmap_debug=$enableval,enable_netmap_debug=no)
 if test x$enable_netmap_debug = xyes; then
         AC_DEFINE(NETMAP_DEBUG, 1, [Support NETMAP_DEBUG])
