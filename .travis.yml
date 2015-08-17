@@ -1,3 +1,8 @@
 language: c
-before_install:
-  - ./bootstrap
+compiler:
+  - gcc
+  - clang
+ script:
+   - ./bootstrap
+   - ./configure
+   - make
