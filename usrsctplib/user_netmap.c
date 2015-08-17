@@ -17,39 +17,8 @@
 #include <netinet/udp.h>
 #include <netinet/sctp_input.h>
 
-/* ########## CONFIG SECTION ########## */
-
-#ifdef NETMAP_DEBUG
-#include "netmap_debug.h"
-#endif
-
-#if defined(MULTISTACK)
-static const char *netmap_ifname = "valem:usrsctp1";
-static const uint16_t multistack_port = 9899;
-#else
-static const char *netmap_ifname = "igb1";
-#endif
-
-static const char *netmap_mac_src = "08:00:27:12:0d:e1";
-static const char *netmap_mac_dst = "0a:00:27:00:00:01";
-
-static const int netmap_ip_override = 0;
-static const char *netmap_ip_src = "192.168.57.2";
-static const char *netmap_ip_dst = "192.168.57.1";
-
-static const uint8_t thread_closed = 0;
-
-
-static const int netmap_debug_operation = 1;
-#if defined(NETMAP_DEBUG)
-static const int netmap_debug_packet_info = 1;
-static const int netmap_debug_packet_dump = 0;
-#endif // defined(NETMAP_DEBUG)
-
-
+#include "user_netmap_config.h"
 #define MAXLEN_MBUF_CHAIN 32
-
-/* ########## CONFIG SECTION END ########## */
 
 static uint16_t ip_checksum(const char *data, size_t length);
 static void 	handle_ethernet(const char* buffer, size_t length);
