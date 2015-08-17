@@ -1,7 +1,8 @@
 #define NETMAP_DEBUG
+#include <stdio.h>
 
 #if defined(NETMAP) || defined(MULTISTACK)
-#include <stdio.h>
+
 #include <string.h>
 #include <stdint.h>
 #include <fcntl.h>
@@ -37,7 +38,14 @@ static const int netmap_ip_override = 0;
 static const char *netmap_ip_src = "192.168.57.2";
 static const char *netmap_ip_dst = "192.168.57.1";
 
-static const int netmap_debug_operation = 0; // print operation information
+static const uint8_t thread_closed = 0;
+
+
+static const int netmap_debug_operation = 1;
+#if defined(NETMAP_DEBUG)
+static const int netmap_debug_packet_info = 1;
+static const int netmap_debug_packet_dump = 0;
+#endif // defined(NETMAP_DEBUG)
 
 
 #define MAXLEN_MBUF_CHAIN 32
@@ -400,7 +408,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	            }
 
 				#if defined(NETMAP_DEBUG)
-					netmap_pktinfo(rx_slot_buffer,rx_slot_length,1,1);
+					netmap_pktinfo(rx_slot_buffer,rx_slot_length,netmap_debug_packet_info,netmap_debug_packet_dump);
 				#endif
 
 	            handle_ethernet(rx_slot_buffer,rx_slot_length);
