@@ -1,5 +1,6 @@
 
 #include <stdio.h>
+#ifdef NETMAP_DEBUG
 
 #include <string.h>
 #include <stdint.h>
@@ -171,3 +172,4 @@ void netmap_pktinfo_udp(const char *buffer, size_t length, uint8_t recursive) {
     SCTP_PRINTF(":%u\n", ntohs(udp_header->uh_dport));
     //SCTP_PRINTF(" - length %u\n", ntohs(udp_header->uh_ulen));
 }
+#endif // #ifdef NETMAP_DEBUG
