@@ -1,4 +1,3 @@
-#define NETMAP_DEBUG
 #include <stdio.h>
 
 #if defined(NETMAP) || defined(MULTISTACK)
