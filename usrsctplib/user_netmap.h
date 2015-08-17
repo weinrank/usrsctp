@@ -36,8 +36,10 @@
 #include <net/multistack.h>
 #endif // defined(MULTISTACK)
 
+enum netmap_states {NETMAP_S_CLOSED, NETMAP_S_OPENING, NETMAP_S_OPEN, NETMAP_S_CLOSING};
+
 struct sctp_netmap_base {
-	int state;
+	enum netmap_states state;
 	int fd;
 	struct nmreq req;
 	char *mem;
@@ -48,6 +50,8 @@ struct sctp_netmap_base {
 	struct sockaddr_in ms_sin;
 #endif /* defined(MULTISTACK) */
 };
+
+
 
 void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak);
 void *usrsctp_netmap_recv_function(void *arg);

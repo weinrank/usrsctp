@@ -353,8 +353,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 
     rx_ring_index = 0;
 
-
-	while (SCTP_BASE_VAR(netmap_base.state) == 1) {
+	while (SCTP_BASE_VAR(netmap_base.state) == NETMAP_S_OPEN) {
 
 		poll(&pfd, 1, 1000);
 		if(pfd.revents != POLLIN) {
@@ -414,6 +413,11 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	char *tx_slot_buffer;
 	uint32_t cur;
 	size_t ip_pkt_len;
+
+	if(SCTP_BASE_VAR(netmap_base.state) != NETMAP_S_OPEN) {
+		SCTP_PRINTF("usrsctp_netmap_ip_output - ERROR: netmap state not open!");
+		exit(-1);
+	}
 
 	ip_pkt_len = sctp_calculate_len(o_pak);
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
@@ -476,7 +480,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 int usrsctp_netmap_init() {
 	struct sctp_netmap_base* netmap_base;
 	netmap_base = &SCTP_BASE_VAR(netmap_base);
-	netmap_base->state = 1;
+	netmap_base->state = NETMAP_S_OPENING;
 
 	// null struct and copy interace name
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
@@ -556,14 +560,17 @@ int usrsctp_netmap_init() {
 
 	netmap_base->iface = NETMAP_IF(netmap_base->mem, netmap_base->req.nr_offset);
 
+	netmap_base->state = NETMAP_S_OPEN;
+
 	SCTP_PRINTF("netmap init complete\n");
 	return 0;
 }
 
+
 int usrsctp_netmap_close() {
 	struct netmap_ring *tx_ring;
 
-	SCTP_BASE_VAR(netmap_base.state) = 2;
+	SCTP_BASE_VAR(netmap_base.state) = NETMAP_S_CLOSING;
 
 	SCTP_PRINTF("flushing outgoing packets\n");
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
@@ -601,6 +608,7 @@ int usrsctp_netmap_close() {
 		perror("netmap - close");
 		return -1;
 	}
+	SCTP_BASE_VAR(netmap_base.state) = NETMAP_S_CLOSED;
 
 	SCTP_PRINTF("netmap - closed successfully...\n");
 
