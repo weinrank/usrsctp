@@ -111,14 +111,6 @@ if test x$enable_netmap = xyes; then
         AC_DEFINE(NETMAP, 1, [Support NETMAP])
 fi
 
-AC_ARG_ENABLE(netmap-debug,
-  AC_HELP_STRING( [--enable-netmap-debug],
-                  [Support NETMAP_DEBUG @<:@default=no@:>@]),
-    enable_netmap_debug=$enableval,enable_netmap_debug=no)
-if test x$enable_netmap_debug = xyes; then
-        AC_DEFINE(NETMAP_DEBUG, 1, [Support NETMAP_DEBUG])
-fi
-
 AC_ARG_ENABLE(multistack,
   AC_HELP_STRING( [--enable-multistack],
                   [Support multistack @<:@default=no@:>@]),
