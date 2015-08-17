@@ -1,6 +1,6 @@
 
 #include <stdio.h>
-#ifdef NETMAP_DEBUG_FELIX
+#ifdef NETMAP_DEBUG
 
 #include <string.h>
 #include <stdint.h>
