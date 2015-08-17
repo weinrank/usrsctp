@@ -206,7 +206,6 @@ sctp_finish(void)
 
 #if defined(NETMAP) || defined(MULTISTACK)
 	usrsctp_netmap_close();
-	//pthread_join(SCTP_BASE_VAR(recvthreadnetmap), NULL);
 #endif //defined(NETMAP) || defined(MULTISTACK)
 
 #ifdef INET

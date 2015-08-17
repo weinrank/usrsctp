@@ -1415,8 +1415,8 @@ recv_thread_init(void)
 			SCTP_BASE_VAR(userspace_route) = -1;
 		}
 	}
-#endif
-#endif
+#endif // defined(INET) || defined(INET6)
+#endif // defined(__Userspace_os_Darwin) || defined(__Userspace_os_DragonFly) || defined(__Userspace_os_FreeBSD)
 #if defined(INET)
 	if (SCTP_BASE_VAR(userspace_rawsctp) != -1) {
 		int rc;
@@ -1436,7 +1436,7 @@ recv_thread_init(void)
 			SCTP_BASE_VAR(userspace_udpsctp) = -1;
 		}
 	}
-#endif
+#endif // defined(INET)
 #if defined(INET6)
 	if (SCTP_BASE_VAR(userspace_rawsctp6) != -1) {
 		int rc;
@@ -1456,7 +1456,7 @@ recv_thread_init(void)
 			SCTP_BASE_VAR(userspace_udpsctp6) = -1;
 		}
 	}
-#endif
+#endif // defined(INET6)
 #if defined(NETMAP) || defined(MULTISTACK)
 	if (SCTP_BASE_VAR(netmap_base.fd) != -1) {
 		int rc;
@@ -1468,7 +1468,7 @@ recv_thread_init(void)
 		}
 	}
 #endif // defined(NETMAP) || defined(MULTISTACK)
-#else
+#else // !defined(__Userspace_os_Windows)
 #if defined(INET)
 	if (SCTP_BASE_VAR(userspace_rawsctp) != -1) {
 		if ((SCTP_BASE_VAR(recvthreadraw) = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&recv_function_raw, NULL, 0, NULL)) == NULL) {

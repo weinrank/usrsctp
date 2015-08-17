@@ -354,8 +354,12 @@ void *usrsctp_netmap_recv_function(void *arg) {
     rx_ring_index = 0;
 
 
-	while (1) {
-        poll(&pfd, 1, -1);
+	while (SCTP_BASE_VAR(netmap_base.state) == 1) {
+
+		poll(&pfd, 1, 1000);
+		if(pfd.revents != POLLIN) {
+			continue;
+		}
 
         ring_index = rx_ring_index;
 
@@ -393,6 +397,8 @@ void *usrsctp_netmap_recv_function(void *arg) {
 
 	    } while (ring_index != rx_ring_index);
     }
+
+	printf("usrsctp_netmap_recv_function - exiting... \n");
 	return (NULL);
 }
 
@@ -470,6 +476,7 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 int usrsctp_netmap_init() {
 	struct sctp_netmap_base* netmap_base;
 	netmap_base = &SCTP_BASE_VAR(netmap_base);
+	netmap_base->state = 1;
 
 	// null struct and copy interace name
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
@@ -555,12 +562,20 @@ int usrsctp_netmap_init() {
 
 int usrsctp_netmap_close() {
 	struct netmap_ring *tx_ring;
+
+	SCTP_BASE_VAR(netmap_base.state) = 2;
+
+	SCTP_PRINTF("flushing outgoing packets\n");
 	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
 	while (nm_tx_pending(tx_ring)) {
 		ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
 		usleep(1); /* wait 1 tick */
 		SCTP_PRINTF("waiting... \n");
 	}
+
+	SCTP_PRINTF("waiting for receive thread...\n");
+	pthread_join(SCTP_BASE_VAR(recvthreadnetmap), NULL);
+	SCTP_PRINTF("done\n");
 
 #ifdef MULTISTACK
 	SCTP_BASE_VAR(netmap_base.ms_req.mr_cmd) = MULTISTACK_UNBIND;
