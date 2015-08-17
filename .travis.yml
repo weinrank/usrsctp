@@ -8,3 +8,7 @@ script:
     - ./bootstrap
     - ./configure
     - make
+    - ./configure --disable-crc32chw
+    - make clean && make
+    - ./configure --disable-shared --enable-static
+    - make clean && make
