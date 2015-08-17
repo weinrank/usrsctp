@@ -1,8 +1,10 @@
 language: c
+
 compiler:
-  - gcc
-  - clang
- script:
-   - ./bootstrap
-   - ./configure
-   - make
+    - gcc
+    - clang
+
+script:
+    - ./bootstrap
+    - ./configure
+    - make
