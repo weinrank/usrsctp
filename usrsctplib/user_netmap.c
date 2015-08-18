@@ -484,7 +484,13 @@ int usrsctp_netmap_init() {
 
 	// null struct and copy interace name
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
+
+#if defined(MULTISTACK)
+	sprintf(netmap_base->req.nr_name, "%s%u", netmap_ifname, getpid());
+#else //defined(MULTISTACK)
 	strcpy(netmap_base->req.nr_name, netmap_ifname);
+#endif //defined(MULTISTACK)
+	printf("netmap interface: %s\n",netmap_base->req.nr_name);
 
     SCTP_PRINTF("netmap - local UDP port: %u\n",SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 
@@ -525,7 +531,7 @@ int usrsctp_netmap_init() {
     SCTP_PRINTF("multistack - socket\n");
 
     netmap_base->ms_sin.sin_family = AF_INET;
-    netmap_base->ms_sin.sin_port = htons(multistack_port);
+    netmap_base->ms_sin.sin_port = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 #ifdef HAVE_SIN_LEN
 	netmap_base->ms_sin.sin_len = sizeof(struct sockaddr_in);
 #endif
@@ -541,7 +547,7 @@ int usrsctp_netmap_init() {
     }
     SCTP_PRINTF("multistack - bind\n");
 
-	strcpy(netmap_base->ms_req.mr_name, netmap_ifname);
+	strcpy(netmap_base->ms_req.mr_name, netmap_base->req.nr_name);
     netmap_base->ms_req.mr_cmd = MULTISTACK_BIND;
     netmap_base->ms_req.mr_sin = netmap_base->ms_sin;
     netmap_base->ms_req.mr_proto = IPPROTO_UDP;
