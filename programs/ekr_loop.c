@@ -320,7 +320,7 @@ main(void)
 		exit(-1);
 	}
 #else
-	if (bind(fd_c, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) < 1) {
+	if (bind(fd_c, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) < 0) {
 		perror("bind");
 		exit(-1);
 	}
