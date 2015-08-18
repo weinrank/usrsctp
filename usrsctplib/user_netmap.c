@@ -342,7 +342,7 @@ void *usrsctp_netmap_recv_function(void *arg) {
 	char *rx_slot_buffer;
 
 	if(netmap_debug_operation) {
-		SCTP_PRINTF("netmap - receive thread started\n");
+		SCTP_PRINTF("netmap - receive thread started - pid: %u\n",getpid());
 	}
 
 	netmap = &SCTP_BASE_VAR(netmap_base);
