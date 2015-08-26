@@ -280,20 +280,20 @@ main(void)
 #ifdef _WIN32
 	if ((fd_c = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		printf("socket() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if ((fd_s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) == INVALID_SOCKET) {
 		printf("socket() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #else
 	if ((fd_c = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 		perror("socket");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if ((fd_s = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
 		perror("socket");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #endif
 	memset(&sin_c, 0, sizeof(struct sockaddr_in));
@@ -313,47 +313,54 @@ main(void)
 #ifdef _WIN32
 	if (bind(fd_c, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
 		printf("bind() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (bind(fd_s, (struct sockaddr *)&sin_s, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
 		printf("bind() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #else
 	if (bind(fd_c, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) < 0) {
 		perror("bind");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (bind(fd_s, (struct sockaddr *)&sin_s, sizeof(struct sockaddr_in)) < 0) {
 		perror("bind");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #endif
 #ifdef _WIN32
 	if (connect(fd_c, (struct sockaddr *)&sin_s, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
 		printf("connect() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (connect(fd_s, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) == SOCKET_ERROR) {
 		printf("connect() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #else
 	if (connect(fd_c, (struct sockaddr *)&sin_s, sizeof(struct sockaddr_in)) < 0) {
 		perror("connect");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (connect(fd_s, (struct sockaddr *)&sin_c, sizeof(struct sockaddr_in)) < 0) {
 		perror("connect");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #endif
 #ifdef _WIN32
 	tid_c = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&handle_packets, (void *)&fd_c, 0, NULL);
 	tid_s = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&handle_packets, (void *)&fd_s, 0, NULL);
 #else
-	pthread_create(&tid_c, NULL, &handle_packets, (void *)&fd_c);
-	pthread_create(&tid_s, NULL, &handle_packets, (void *)&fd_s);
+	if (pthread_create(&tid_c, NULL, &handle_packets, (void *)&fd_c)) {
+		perror("pthread_create tid_c");
+		exit(EXIT_FAILURE);
+	}
+
+	if (pthread_create(&tid_s, NULL, &handle_packets, (void *)&fd_s)) {
+		perror("pthread_create tid_s");
+		exit(EXIT_FAILURE);
+	};
 #endif
 #ifdef SCTP_DEBUG
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
@@ -363,48 +370,48 @@ main(void)
 	usrsctp_register_address((void *)&fd_s);
 	if ((s_c = usrsctp_socket(AF_CONN, SOCK_STREAM, IPPROTO_SCTP, receive_cb, NULL, 0, &fd_c)) == NULL) {
 		perror("usrsctp_socket");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	opt_len = (socklen_t)sizeof(int);
 	cur_buf_size = 0;
 	if (usrsctp_getsockopt(s_c, SOL_SOCKET, SO_SNDBUF, &cur_buf_size, &opt_len) < 0) {
 		perror("usrsctp_getsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	printf("Change send socket buffer size from %d ", cur_buf_size);
 	snd_buf_size = 1<<20; /* 1 MB */
 	if (usrsctp_setsockopt(s_c, SOL_SOCKET, SO_SNDBUF, &snd_buf_size, sizeof(int)) < 0) {
 		perror("usrsctp_setsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	opt_len = (socklen_t)sizeof(int);
 	cur_buf_size = 0;
 	if (usrsctp_getsockopt(s_c, SOL_SOCKET, SO_SNDBUF, &cur_buf_size, &opt_len) < 0) {
 		perror("usrsctp_getsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	printf("to %d.\n", cur_buf_size);
 	if ((s_l = usrsctp_socket(AF_CONN, SOCK_STREAM, IPPROTO_SCTP, receive_cb, NULL, 0, &fd_s)) == NULL) {
 		perror("usrsctp_socket");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	opt_len = (socklen_t)sizeof(int);
 	cur_buf_size = 0;
 	if (usrsctp_getsockopt(s_l, SOL_SOCKET, SO_RCVBUF, &cur_buf_size, &opt_len) < 0) {
 		perror("usrsctp_getsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	printf("Change receive socket buffer size from %d ", cur_buf_size);
 	rcv_buf_size = 1<<16; /* 64 KB */
 	if (usrsctp_setsockopt(s_l, SOL_SOCKET, SO_RCVBUF, &rcv_buf_size, sizeof(int)) < 0) {
 		perror("usrsctp_setsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	opt_len = (socklen_t)sizeof(int);
 	cur_buf_size = 0;
 	if (usrsctp_getsockopt(s_l, SOL_SOCKET, SO_RCVBUF, &cur_buf_size, &opt_len) < 0) {
 		perror("usrsctp_getsockopt");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	printf("to %d.\n", cur_buf_size);
 	/* Bind the client side. */
@@ -417,7 +424,7 @@ main(void)
 	sconn.sconn_addr = &fd_c;
 	if (usrsctp_bind(s_c, (struct sockaddr *)&sconn, sizeof(struct sockaddr_conn)) < 0) {
 		perror("usrsctp_bind");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	/* Bind the server side. */
 	memset(&sconn, 0, sizeof(struct sockaddr_conn));
@@ -429,12 +436,12 @@ main(void)
 	sconn.sconn_addr = &fd_s;
 	if (usrsctp_bind(s_l, (struct sockaddr *)&sconn, sizeof(struct sockaddr_conn)) < 0) {
 		perror("usrsctp_bind");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	/* Make server side passive... */
 	if (usrsctp_listen(s_l, 1) < 0) {
 		perror("usrsctp_listen");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	/* Initiate the handshake */
 	memset(&sconn, 0, sizeof(struct sockaddr_conn));
@@ -446,11 +453,11 @@ main(void)
 	sconn.sconn_addr = &fd_c;
 	if (usrsctp_connect(s_c, (struct sockaddr *)&sconn, sizeof(struct sockaddr_conn)) < 0) {
 		perror("usrsctp_connect");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if ((s_s = usrsctp_accept(s_l, NULL, NULL)) == NULL) {
 		perror("usrsctp_accept");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	usrsctp_close(s_l);
 	memset(line, 'A', LINE_LENGTH);
@@ -463,7 +470,7 @@ main(void)
 	if (usrsctp_sendv(s_c, line, LINE_LENGTH, NULL, 0, (void *)&sndinfo,
 	                 (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
 		perror("usrsctp_sendv");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	usrsctp_shutdown(s_c, SHUT_WR);
 
@@ -481,11 +488,11 @@ main(void)
 	WaitForSingleObject(tid_s, INFINITE);
 	if (closesocket(fd_c) == SOCKET_ERROR) {
 		printf("closesocket() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (closesocket(fd_s) == SOCKET_ERROR) {
 		printf("closesocket() failed with error: %ld\n", WSAGetLastError());
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #else
 	pthread_cancel(tid_c);
@@ -494,11 +501,11 @@ main(void)
 	pthread_join(tid_s, NULL);
 	if (close(fd_c) < 0) {
 		perror("close");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 	if (close(fd_s) < 0) {
 		perror("close");
-		exit(-1);
+		exit(EXIT_FAILURE);
 	}
 #endif
 	return (0);
