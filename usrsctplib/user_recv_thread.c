@@ -1097,6 +1097,12 @@ recv_thread_init(void)
 #if defined(INET) || defined(INET6)
 	const int on = 1;
 #endif
+#if defined(NETMAP) || defined(MULTISTACK)
+	if(usrsctp_netmap_init() < 0) {
+		SCTP_PRINTF("usrsctp_netmap_init failed\n");
+		exit(-1);
+	}
+#endif // defined(NETMAP) || defined(MULTISTACK) 
 #if !defined(__Userspace_os_Windows)
 	struct timeval timeout;
 
@@ -1475,6 +1481,17 @@ recv_thread_init(void)
 		}
 	}
 #endif
+#if defined(NETMAP) || defined(MULTISTACK)
+	if (SCTP_BASE_VAR(netmap_base.fd) != -1) {
+		int rc;
+
+		if ((rc = sctp_userspace_thread_create(&SCTP_BASE_VAR(recvthreadnetmap), &usrsctp_netmap_recv_function))) {
+			SCTPDBG(SCTP_DEBUG_USR, "Can't start NETMAP recv thread (%d).\n", rc);
+			close(SCTP_BASE_VAR(netmap_base.fd));
+			SCTP_BASE_VAR(netmap_base.fd) = -1;
+		}
+	}
+#endif // defined(NETMAP) || defined(MULTISTACK)
 }
 
 void
