@@ -54,7 +54,11 @@
 #define LINE_LENGTH 80
 #define DISCARD_PPID 39
 
+#ifdef _WIN32
+static DWORD WINAPI
+#else
 static void *
+#endif
 handle_packets(void *arg)
 {
 #ifdef _WIN32
@@ -76,7 +80,11 @@ handle_packets(void *arg)
 			usrsctp_conninput(fdp, buf, (size_t)length, 0);
 		}
 	}
+#ifdef _WIN32
+	return 0;
+#else
 	return (NULL);
+#endif
 }
 
 static int
@@ -364,12 +372,21 @@ main(int argc, char *argv[])
 #endif
 	struct sctp_sndinfo sndinfo;
 	char line[LINE_LENGTH];
+#ifdef _WIN32
+	WSADATA wsaData;
+#endif
 
 	if (argc < 4) {
 		printf("error: this program requires 4 arguments!\n");
 		exit(EXIT_FAILURE);
 	}
 
+#ifdef _WIN32
+	if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
+		printf("WSAStartup failed\n");
+		exit (EXIT_FAILURE);
+	}
+#endif
 	usrsctp_init(0, conn_output, debug_printf);
 	/* set up a connected UDP socket */
 #ifdef _WIN32
@@ -420,7 +437,7 @@ main(int argc, char *argv[])
 	}
 #endif
 #ifdef _WIN32
-	tid = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&handle_packets, (void *)&fd, 0, NULL);
+	tid = CreateThread(NULL, 0, &handle_packets, (void *)&fd, 0, NULL);
 #else
 	pthread_create(&tid, NULL, &handle_packets, (void *)&fd);
 #endif
@@ -506,6 +523,7 @@ main(int argc, char *argv[])
 	if (closesocket(fd) == SOCKET_ERROR) {
 		printf("closesocket() failed with error: %ld\n", WSAGetLastError());
 	}
+	WSACleanup();
 #else
 	pthread_cancel(tid);
 	pthread_join(tid, NULL);

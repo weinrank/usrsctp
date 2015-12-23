@@ -32,7 +32,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctputil.c 287294 2015-08-29 17:26:29Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctputil.c 291904 2015-12-06 16:17:57Z tuexen $");
 #endif
 
 #include <netinet/sctp_os.h>
@@ -1005,7 +1005,7 @@ sctp_map_assoc_state(int kernel_state)
 
 int
 sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
-               uint32_t override_tag, uint32_t vrf_id)
+               uint32_t override_tag, uint32_t vrf_id, uint16_t o_strms)
 {
 	struct sctp_association *asoc;
 	/*
@@ -1177,7 +1177,7 @@ sctp_init_asoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	 * that we request by default.
 	 */
 	asoc->strm_realoutsize = asoc->streamoutcnt = asoc->pre_open_streams =
-	    inp->sctp_ep.pre_open_stream_count;
+	    o_strms;
 	SCTP_MALLOC(asoc->strmout, struct sctp_stream_out *,
 		    asoc->streamoutcnt * sizeof(struct sctp_stream_out),
 		    SCTP_M_STRMO);
@@ -2299,13 +2299,13 @@ sctp_timer_start(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-			__FUNCTION__, t_type);
+			__func__, t_type);
 		return;
 		break;
 	}
 	if ((to_ticks <= 0) || (tmr == NULL)) {
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: %d:software error to_ticks:%d tmr:%p not set ??\n",
-			__FUNCTION__, t_type, to_ticks, (void *)tmr);
+			__func__, t_type, to_ticks, (void *)tmr);
 		return;
 	}
 	if (SCTP_OS_TIMER_PENDING(&tmr->timer)) {
@@ -2465,7 +2465,7 @@ sctp_timer_stop(int t_type, struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_TIMER1, "%s: Unknown timer type %d\n",
-			__FUNCTION__, t_type);
+			__func__, t_type);
 		break;
 	}
 	if (tmr == NULL) {
@@ -2782,6 +2782,9 @@ sctp_notify_assoc_change(uint16_t state, struct sctp_tcb *stcb,
 	struct socket *so;
 #endif
 
+	if (stcb == NULL) {
+		return;
+	}
 	if (sctp_stcb_is_feature_on(stcb->sctp_ep, stcb, SCTP_PCB_FLAGS_RECVASSOCEVNT)) {
 		notif_len = sizeof(struct sctp_assoc_change);
 		if (abort != NULL) {
@@ -3939,7 +3942,7 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 		break;
 	default:
 		SCTPDBG(SCTP_DEBUG_UTIL1, "%s: unknown notification %xh (%u)\n",
-			__FUNCTION__, notification, notification);
+			__func__, notification, notification);
 		break;
 	}			/* end switch */
 }
@@ -4811,10 +4814,11 @@ sctp_add_to_readq(struct sctp_inpcb *inp,
 		control->end_added = 1;
 	}
 #if defined(__Userspace__)
-	if (inp->recv_callback) {
+	if (inp->recv_callback != NULL) {
 		if (inp_read_lock_held == 0)
 			SCTP_INP_READ_UNLOCK(inp);
-		if (control->end_added == 1) {
+		if ((control->end_added == 1) &&
+		    (stcb != NULL) && (stcb->sctp_socket != NULL)) {
 			struct socket *so;
 			struct mbuf *m;
 			char *buffer;
@@ -5033,7 +5037,7 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 	 */
 	control->sinfo_tsn = control->sinfo_cumtsn = ctls_cumack;
 #if defined(__Userspace__)
-	if (inp->recv_callback) {
+	if ((inp != NULL) && (inp->recv_callback != NULL)) {
 		uint32_t pd_point, length;
 
 		length = control->length;
@@ -5043,7 +5047,8 @@ sctp_append_to_readq(struct sctp_inpcb *inp,
 		} else {
 			pd_point = inp->partial_delivery_point;
 		}
-		if ((control->end_added == 1) || (length >= pd_point)) {
+		if (((control->end_added == 1) || (length >= pd_point)) &&
+		    ((stcb != NULL) && (stcb->sctp_socket))) {
 			struct socket *so;
 			char *buffer;
 			struct sctp_rcvinfo rcv;
@@ -6201,20 +6206,20 @@ sctp_sorecvmsg(struct socket *so,
 			s_extra = (struct sctp_extrcvinfo *)sinfo;
 			if ((nxt) &&
 			    (nxt->length)) {
-				s_extra->sreinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
+				s_extra->serinfo_next_flags = SCTP_NEXT_MSG_AVAIL;
 				if (nxt->sinfo_flags & SCTP_UNORDERED) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_UNORDERED;
 				}
 				if (nxt->spec_flags & M_NOTIFICATION) {
-					s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
+					s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_IS_NOTIFICATION;
 				}
-				s_extra->sreinfo_next_aid = nxt->sinfo_assoc_id;
-				s_extra->sreinfo_next_length = nxt->length;
-				s_extra->sreinfo_next_ppid = nxt->sinfo_ppid;
-				s_extra->sreinfo_next_stream = nxt->sinfo_stream;
+				s_extra->serinfo_next_aid = nxt->sinfo_assoc_id;
+				s_extra->serinfo_next_length = nxt->length;
+				s_extra->serinfo_next_ppid = nxt->sinfo_ppid;
+				s_extra->serinfo_next_stream = nxt->sinfo_stream;
 				if (nxt->tail_mbuf != NULL) {
 					if (nxt->end_added) {
-						s_extra->sreinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
+						s_extra->serinfo_next_flags |= SCTP_NEXT_MSG_ISCOMPLETE;
 					}
 				}
 			} else {
@@ -6223,11 +6228,11 @@ sctp_sorecvmsg(struct socket *so,
 				 * that is on the control's structure :-D
 				 */
 				nxt = NULL;
-				s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
-				s_extra->sreinfo_next_aid = 0;
-				s_extra->sreinfo_next_length = 0;
-				s_extra->sreinfo_next_ppid = 0;
-				s_extra->sreinfo_next_stream = 0;
+				s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
+				s_extra->serinfo_next_aid = 0;
+				s_extra->serinfo_next_length = 0;
+				s_extra->serinfo_next_ppid = 0;
+				s_extra->serinfo_next_stream = 0;
 			}
 		}
 		/*
@@ -6410,7 +6415,7 @@ sctp_sorecvmsg(struct socket *so,
 					/* been through it all, must hold sb lock ok to null tail */
 					if (control->data == NULL) {
 #ifdef INVARIANTS
-#if !defined(__APPLE__)
+#if defined(__FreeBSD__)
 						if ((control->end_added == 0) ||
 						    (TAILQ_NEXT(control, next) == NULL)) {
 							/* If the end is not added, OR the
@@ -6776,7 +6781,7 @@ sctp_sorecvmsg(struct socket *so,
 	     sctp_is_feature_on(inp, SCTP_PCB_FLAGS_RECVNXTINFO))) {
 		struct sctp_extrcvinfo *s_extra;
 		s_extra = (struct sctp_extrcvinfo *)sinfo;
-		s_extra->sreinfo_next_flags = SCTP_NO_NEXT_MSG;
+		s_extra->serinfo_next_flags = SCTP_NO_NEXT_MSG;
 	}
 	if (hold_rlock == 1) {
 		SCTP_INP_READ_UNLOCK(inp);
@@ -7845,6 +7850,26 @@ sctp_recv_udp_tunneled_packet(struct mbuf *m, int off, struct inpcb *inp,
 	for (last = m; last->m_next; last = last->m_next);
 	last->m_next = sp;
 	m->m_pkthdr.len += sp->m_pkthdr.len;
+	/*
+	 * The CSUM_DATA_VALID flags indicates that the HW checked the
+	 * UDP checksum and it was valid.
+	 * Since CSUM_DATA_VALID == CSUM_SCTP_VALID this would imply that
+	 * the HW also verified the SCTP checksum. Therefore, clear the bit.
+	 */
+#if __FreeBSD_version > 1000049
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	        "sctp_recv_udp_tunneled_packet(): Packet of length %d received on %s with csum_flags 0x%b.\n",
+	        m->m_pkthdr.len,
+	        if_name(m->m_pkthdr.rcvif),
+	        (int)m->m_pkthdr.csum_flags, CSUM_BITS);
+#else
+	SCTPDBG(SCTP_DEBUG_CRCOFFLOAD,
+	        "sctp_recv_udp_tunneled_packet(): Packet of length %d received on %s with csum_flags 0x%x.\n",
+	        m->m_pkthdr.len,
+	        if_name(m->m_pkthdr.rcvif),
+	        m->m_pkthdr.csum_flags);
+#endif
+	m->m_pkthdr.csum_flags &= ~CSUM_DATA_VALID;
 	iph = mtod(m, struct ip *);
 	switch (iph->ip_v) {
 #ifdef INET

@@ -53,7 +53,11 @@
 #define LINE_LENGTH (1<<20)
 #define DISCARD_PPID 39
 
+#ifdef _WIN32
+static DWORD WINAPI
+#else
 static void *
+#endif
 handle_packets(void *arg)
 {
 #ifdef _WIN32
@@ -80,7 +84,11 @@ handle_packets(void *arg)
 			usrsctp_conninput(fdp, buf, (size_t)length, 0);
 		}
 	}
+#ifdef _WIN32
+	return 0;
+#else
 	return (NULL);
+#endif
 }
 
 static int
@@ -273,8 +281,17 @@ main(void)
 	int cur_buf_size, snd_buf_size, rcv_buf_size;
 	socklen_t opt_len;
 	struct sctp_sndinfo sndinfo;
-	char line[LINE_LENGTH];
+	char *line;
+#ifdef _WIN32
+	WSADATA wsaData;
+#endif
 
+#ifdef _WIN32
+	if (WSAStartup(MAKEWORD(2,2), &wsaData) != 0) {
+		printf("WSAStartup failed\n");
+		exit (EXIT_FAILURE);
+	}
+#endif
 	usrsctp_init(0, conn_output, debug_printf);
 	/* set up a connected UDP socket */
 #ifdef _WIN32
@@ -349,8 +366,8 @@ main(void)
 	}
 #endif
 #ifdef _WIN32
-	tid_c = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&handle_packets, (void *)&fd_c, 0, NULL);
-	tid_s = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&handle_packets, (void *)&fd_s, 0, NULL);
+	tid_c = CreateThread(NULL, 0, &handle_packets, (void *)&fd_c, 0, NULL);
+	tid_s = CreateThread(NULL, 0, &handle_packets, (void *)&fd_s, 0, NULL);
 #else
 	if (pthread_create(&tid_c, NULL, &handle_packets, (void *)&fd_c)) {
 		perror("pthread_create tid_c");
@@ -460,6 +477,9 @@ main(void)
 		exit(EXIT_FAILURE);
 	}
 	usrsctp_close(s_l);
+	if ((line = malloc(LINE_LENGTH)) == NULL) {
+		exit(EXIT_FAILURE);
+	}
 	memset(line, 'A', LINE_LENGTH);
 	sndinfo.snd_sid = 1;
 	sndinfo.snd_flags = 0;
@@ -472,6 +492,7 @@ main(void)
 		perror("usrsctp_sendv");
 		exit(EXIT_FAILURE);
 	}
+	free(line);
 	usrsctp_shutdown(s_c, SHUT_WR);
 
 	while (usrsctp_finish() != 0) {
@@ -494,6 +515,7 @@ main(void)
 		printf("closesocket() failed with error: %ld\n", WSAGetLastError());
 		exit(EXIT_FAILURE);
 	}
+	WSACleanup();
 #else
 	pthread_cancel(tid_c);
 	pthread_join(tid_c, NULL);

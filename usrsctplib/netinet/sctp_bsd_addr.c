@@ -124,6 +124,9 @@ static void
 #endif
 sctp_iterator_thread(void *v SCTP_UNUSED)
 {
+#if defined(__Userspace__)
+	sctp_userspace_set_threadname("SCTP iterator");
+#endif
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	/* In FreeBSD this thread never terminates. */
 #if defined(__FreeBSD__)
@@ -196,11 +199,7 @@ sctp_startup_iterator(void)
 #elif defined(__APPLE__)
 	kernel_thread_start((thread_continue_t)sctp_iterator_thread, NULL, &sctp_it_ctl.thread_proc);
 #elif defined(__Userspace__)
-#if defined(__Userspace_os_Windows)
-	if ((sctp_it_ctl.thread_proc = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)&sctp_iterator_thread, NULL, 0, NULL)) == NULL) {
-#else
-	if (pthread_create(&sctp_it_ctl.thread_proc, NULL, &sctp_iterator_thread, NULL)) {
-#endif
+	if (sctp_userspace_thread_create(&sctp_it_ctl.thread_proc, &sctp_iterator_thread)) {
 		SCTP_PRINTF("ERROR: Creating sctp_iterator_thread failed.\n");
 	}
 #endif
