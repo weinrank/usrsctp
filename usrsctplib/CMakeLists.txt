@@ -136,6 +136,11 @@ endif()
 # CHECK OPTIONS
 #################################################
 
+option(INVARIANTS "Add runtime checks" 0)
+if (INVARIANTS)
+	add_definitions(-DINVARIANTS)
+endif()
+
 option(SCTP_DEBUG "Provide debug information" 1)
 if (SCTP_DEBUG)
 	add_definitions(-DSCTP_DEBUG)
@@ -191,11 +196,7 @@ if (SCTP_KAME)
 	add_definitions(-DSCTP_KAME)
 endif()
 
-#CONFIGURE_FILE (
-#    usrsctp.pc.in
-#    usrsctp.pc
-#    @ONLY
-#)
+option(WERROR "Warning as error" ON)
 
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/netinet ${PROJECT_SOURCE_DIR}/netinet6)
 
@@ -242,8 +243,15 @@ SET_TARGET_PROPERTIES (usrsctp PROPERTIES IMPORT_SUFFIX "_import.lib")
 SET_TARGET_PROPERTIES (usrsctp PROPERTIES SOVERSION 1 VERSION 1.0.0)
 
 IF ("x${CMAKE_C_COMPILER_ID}" STREQUAL "xClang" OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xGNU")
-    SET_PROPERTY (TARGET usrsctp APPEND_STRING PROPERTY COMPILE_FLAGS "-g -pedantic -Wall -Werror -std=c99") #
-    SET_PROPERTY (TARGET usrsctp-static APPEND_STRING PROPERTY COMPILE_FLAGS "-g -pedantic -Wall -Werror -std=c99") #
+	set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -g -pedantic -Wall -std=c99")
+	set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -g -pedantic -Wall -std=c99")
+	if (WERROR)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} -Werror")
+		set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Werror")
+	endif()
+	MESSAGE(STATUS "COMPILE FLAGS: ${CMAKE_C_FLAGS}")
+	#SET_PROPERTY (TARGET usrsctp APPEND_STRING PROPERTY COMPILE_FLAGS "-g -pedantic -Wall -Werror -std=c99")
+    #SET_PROPERTY (TARGET usrsctp-static APPEND_STRING PROPERTY COMPILE_FLAGS "-g -pedantic -Wall -Werror -std=c99")
 ENDIF ()
 IF ("x${CMAKE_C_COMPILER_ID}" STREQUAL "xMSVC")
     IF (CMAKE_C_FLAGS MATCHES "/W[0-4]")
@@ -251,6 +259,9 @@ IF ("x${CMAKE_C_COMPILER_ID}" STREQUAL "xMSVC")
     ELSE ()
         SET(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /W4")
     ENDIF ()
+	if (WERROR)
+		set(CMAKE_C_FLAGS "${CMAKE_C_FLAGS} /WX")
+	endif()
 ENDIF ()
 
 IF ("x${CMAKE_C_COMPILER_ID}" STREQUAL "xMSVC90" OR "x${CMAKE_C_COMPILER_ID}" STREQUAL "xMSVC10")
@@ -261,9 +272,10 @@ IF (NOT DEFINED CMAKE_INSTALL_LIBDIR)
     SET(CMAKE_INSTALL_LIBDIR lib)
 ENDIF ()
 
+
+#################################################
+# INSTALL LIBRARY AND HEADER
+#################################################
+
 INSTALL (TARGETS usrsctp usrsctp-static DESTINATION ${CMAKE_INSTALL_LIBDIR})
-#INSTALL (DIRECTORY include DESTINATION ${CMAKE_INSTALL_PREFIX})
-INSTALL (FILES ${usrsctp_root_HEADERS} DESTINATION include/usrsctp)
-INSTALL (FILES ${usrsctp_netinet_HEADERS} DESTINATION include/usrsctp/netinet)
-INSTALL (FILES ${usrsctp_netinet6_HEADERS} DESTINATION include/usrsctp/netinet6)
-INSTALL (FILES ${CMAKE_CURRENT_BINARY_DIR}/usrsctp.pc DESTINATION ${CMAKE_INSTALL_LIBDIR}/pkgconfig)
+INSTALL (FILES usrsctp.h DESTINATION include)

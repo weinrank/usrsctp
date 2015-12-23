@@ -13,6 +13,7 @@ The user-land stack has been tested on FreeBSD 10.0, Ubuntu 11.10, Windows 7, Ma
 #### Unix-like Operating Systems
 In the folder `usrsctp` type
 
+    $ ./bootstrap
     $ ./configure
     $ make
 
@@ -34,7 +35,7 @@ Create a directory outside the `usrsctp` directory, enter it and generate files 
 
     $ cmake <path-to-usrsctp-sources>
 
-By using the `-g`flag you can specify the target buildsystem e.g. `cmake -G Xcode ../usrsctp` will generate project files for Xcode.
+By using the `-G`flag you can specify the target buildsystem e.g. `cmake -G Xcode ../usrsctp` will generate project files for Xcode.
 
 ### Running the Test Programs
 

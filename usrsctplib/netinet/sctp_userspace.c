@@ -34,6 +34,50 @@
 #pragma comment(lib, "IPHLPAPI.lib")
 #endif
 #include <netinet/sctp_os_userspace.h>
+#if defined(__Userspace_os_FreeBSD)
+#include <pthread_np.h>
+#endif
+
+#if defined(__Userspace_os_Windows)
+/* Adapter to translate Unix thread start routines to Windows thread start
+ * routines.
+ */
+static DWORD WINAPI
+sctp_create_thread_adapter(void *arg) {
+	start_routine_t start_routine = (start_routine_t)arg;
+	return start_routine(NULL) == NULL;
+}
+
+int
+sctp_userspace_thread_create(userland_thread_t *thread, start_routine_t start_routine)
+{
+	*thread = CreateThread(NULL, 0, sctp_create_thread_adapter,
+			       (void *)start_routine, 0, NULL);
+	if (*thread == NULL)
+		return GetLastError();
+	return 0;
+}
+#else
+int
+sctp_userspace_thread_create(userland_thread_t *thread, start_routine_t start_routine)
+{
+	return pthread_create(thread, NULL, start_routine, NULL);
+}
+#endif
+
+void
+sctp_userspace_set_threadname(const char *name)
+{
+#if defined(__Userspace_os_Darwin)
+	pthread_setname_np(name);
+#endif
+#if defined(__Userspace_os_Linux)
+	pthread_setname_np(pthread_self(), name);
+#endif
+#if defined(__Userspace_os_FreeBSD)
+	pthread_set_name_np(pthread_self(), name);
+#endif
+}
 
 #if !defined(_WIN32) && !defined(__Userspace_os_NaCl)
 int
@@ -42,6 +86,7 @@ sctp_userspace_get_mtu_from_ifn(uint32_t if_index, int af)
 	struct ifreq ifr;
 	int fd;
 
+	memset(&ifr, 0, sizeof(struct ifreq));
 	if_indextoname(if_index, ifr.ifr_name);
 	/* TODO can I use the raw socket here and not have to open a new one with each query? */
 	if ((fd = socket(af, SOCK_DGRAM, 0)) < 0)
