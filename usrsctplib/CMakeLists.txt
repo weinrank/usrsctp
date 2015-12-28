@@ -198,6 +198,21 @@ endif()
 
 option(WERROR "Warning as error" ON)
 
+option(CRC32_HW "Use CRC32 CPU support" 1)
+if (CRC32_HW)
+	add_definitions(-DCRC32HW)
+endif()
+
+option(NETMAP "Netmap support" 0)
+if (NETMAP)
+	add_definitions(-DNETMAP)
+endif()
+
+option(MULTISTACK "Multistack support" 0)
+if (MULTISTACK)
+	add_definitions(-DMULTISTACK)
+endif()
+
 include_directories(${PROJECT_SOURCE_DIR} ${PROJECT_SOURCE_DIR}/netinet ${PROJECT_SOURCE_DIR}/netinet6)
 
 LIST (APPEND usrsctp_root_HEADERS
