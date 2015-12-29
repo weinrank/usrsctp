@@ -244,6 +244,11 @@ netinet/sctp_auth.c      netinet/sctp_crc32.c         netinet/sctp_pcb.c      ne
 netinet/sctp_bsd_addr.c  netinet/sctp_indata.c        netinet/sctp_peeloff.c  netinet/sctp_timer.c         user_environment.c
 )
 
+if(NETMAP OR MULTISTACK)
+	LIST (APPEND usrsctp_root_HEADERS user_netmap.h	user_netmap_config.h)
+	LIST (APPEND usrsctp_SOURCES user_netmap.c)
+endif()
+
 add_library(usrsctp SHARED ${usrsctp_SOURCES} ${usrsctp_HEADERS})
 add_library(usrsctp-static STATIC ${usrsctp_SOURCES} ${usrsctp_HEADERS})
 
