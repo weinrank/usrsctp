@@ -198,9 +198,9 @@ endif()
 
 option(WERROR "Warning as error" ON)
 
-option(CRC32_HW "Use CRC32 CPU support" 1)
-if (CRC32_HW)
-	add_definitions(-DCRC32HW)
+option(CRC32CHW "Use CRC32 CPU support" 1)
+if (CRC32CHW)
+	add_definitions(-DCRC32CHW)
 endif()
 
 option(NETMAP "Netmap support" 0)
