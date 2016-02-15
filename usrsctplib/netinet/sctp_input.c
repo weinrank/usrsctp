@@ -32,7 +32,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctp_input.c 292060 2015-12-10 11:49:32Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctp_input.c 295075 2016-01-30 16:56:39Z tuexen $");
 #endif
 
 #include <netinet/sctp_os.h>
@@ -94,7 +94,7 @@ static void
 sctp_handle_init(struct mbuf *m, int iphlen, int offset,
                  struct sockaddr *src, struct sockaddr *dst, struct sctphdr *sh,
                  struct sctp_init_chunk *cp, struct sctp_inpcb *inp,
-                 struct sctp_tcb *stcb, int *abort_no_unlock,
+                 struct sctp_tcb *stcb, struct sctp_nets *net, int *abort_no_unlock,
 #if defined(__FreeBSD__)
                  uint8_t mflowtype, uint32_t mflowid,
 #endif
@@ -220,8 +220,8 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 	} else {
 		SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
-		sctp_send_initiate_ack(inp, stcb, m, iphlen, offset, src, dst,
-		                       sh, cp,
+		sctp_send_initiate_ack(inp, stcb, net, m, iphlen, offset,
+		                       src, dst, sh, cp,
 #if defined(__FreeBSD__)
 		                       mflowtype, mflowid,
 #endif
@@ -5004,7 +5004,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			}
 			sctp_handle_init(m, iphlen, *offset, src, dst, sh,
 			                 (struct sctp_init_chunk *)ch, inp,
-			                 stcb, &abort_no_unlock,
+			                 stcb, *netp, &abort_no_unlock,
 #if defined(__FreeBSD__)
 			                 mflowtype, mflowid,
 #endif
@@ -5855,9 +5855,18 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			stcb = sctp_findassociation_addr(m, offset, src, dst,
 			                                 sh, ch, &inp, &net, vrf_id);
 #if defined(INET) || defined(INET6)
-			if ((net != NULL) && (port != 0)) {
+			if ((ch->chunk_type != SCTP_INITIATION) &&
+			    (net != NULL) && (net->port != port)) {
 				if (net->port == 0) {
-					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
+					/* UDP encapsulation turned on. */
+					net->mtu -= sizeof(struct udphdr);
+					if (stcb->asoc.smallest_mtu > net->mtu) {
+						sctp_pathmtu_adjustment(stcb, net->mtu);
+					}
+				} else if (port == 0) {
+					/* UDP encapsulation turned off. */
+					net->mtu += sizeof(struct udphdr);
+					/* XXX Update smallest_mtu */
 				}
 				net->port = port;
 			}
@@ -5888,9 +5897,18 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	stcb = sctp_findassociation_addr(m, offset, src, dst,
 	                                 sh, ch, &inp, &net, vrf_id);
 #if defined(INET) || defined(INET6)
-	if ((net != NULL) && (port != 0)) {
+	if ((ch->chunk_type != SCTP_INITIATION) &&
+	    (net != NULL) && (net->port != port)) {
 		if (net->port == 0) {
-			sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
+			/* UDP encapsulation turned on. */
+			net->mtu -= sizeof(struct udphdr);
+			if (stcb->asoc.smallest_mtu > net->mtu) {
+				sctp_pathmtu_adjustment(stcb, net->mtu);
+			}
+		} else if (port == 0) {
+			/* UDP encapsulation turned off. */
+			net->mtu += sizeof(struct udphdr);
+			/* XXX Update smallest_mtu */
 		}
 		net->port = port;
 	}
@@ -6012,9 +6030,18 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			 */
 			inp = stcb->sctp_ep;
 #if defined(INET) || defined(INET6)
-			if ((net != NULL) && (port != 0)) {
+			if ((ch->chunk_type != SCTP_INITIATION) &&
+			    (net != NULL) && (net->port != port)) {
 				if (net->port == 0) {
-					sctp_pathmtu_adjustment(stcb, net->mtu - sizeof(struct udphdr));
+					/* UDP encapsulation turned on. */
+					net->mtu -= sizeof(struct udphdr);
+					if (stcb->asoc.smallest_mtu > net->mtu) {
+						sctp_pathmtu_adjustment(stcb, net->mtu);
+					}
+				} else if (port == 0) {
+					/* UDP encapsulation turned off. */
+					net->mtu += sizeof(struct udphdr);
+					/* XXX Update smallest_mtu */
 				}
 				net->port = port;
 			}
