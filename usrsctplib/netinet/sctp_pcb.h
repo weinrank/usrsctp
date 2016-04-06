@@ -32,7 +32,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctp_pcb.h 292060 2015-12-10 11:49:32Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctp_pcb.h 295668 2016-02-16 19:36:25Z tuexen $");
 #endif
 
 #ifndef _NETINET_SCTP_PCB_H_
@@ -322,14 +322,24 @@ struct sctp_base_info {
 #endif
 #endif
 #ifdef INET
+#if defined(__Userspace_os_Windows)
+	SOCKET userspace_rawsctp;
+	SOCKET userspace_udpsctp;
+#else
 	int userspace_rawsctp;
 	int userspace_udpsctp;
+#endif
 	userland_thread_t recvthreadraw;
 	userland_thread_t recvthreadudp;
 #endif
 #ifdef INET6
+#if defined(__Userspace_os_Windows)
+	SOCKET userspace_rawsctp6;
+	SOCKET userspace_udpsctp6;
+#else
 	int userspace_rawsctp6;
 	int userspace_udpsctp6;
+#endif
 	userland_thread_t recvthreadraw6;
 	userland_thread_t recvthreadudp6;
 #endif
@@ -826,10 +836,6 @@ void
 sctp_add_vtag_to_timewait(uint32_t tag, uint32_t time, uint16_t lport, uint16_t rport);
 
 void sctp_add_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *, uint32_t);
-
-int sctp_insert_laddr(struct sctpladdr *, struct sctp_ifa *, uint32_t);
-
-void sctp_remove_laddr(struct sctp_laddr *);
 
 void sctp_del_local_addr_ep(struct sctp_inpcb *, struct sctp_ifa *);
 
