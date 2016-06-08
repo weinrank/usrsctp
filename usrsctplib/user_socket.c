@@ -3001,12 +3001,12 @@ sctp_userspace_ip_output(int *result, struct mbuf *o_pak,
 	msg_hdr.msg_controllen = 0;
 	msg_hdr.msg_flags = 0;
 
-	if ((!use_udp_tunneling) && (SCTP_BASE_VAR(userspace_rawsctp) > -1)) {
+	if ((!use_udp_tunneling) && (SCTP_BASE_VAR(userspace_rawsctp) != -1)) {
 		if ((res = sendmsg(SCTP_BASE_VAR(userspace_rawsctp), &msg_hdr, MSG_DONTWAIT)) != send_len) {
 			*result = errno;
 		}
 	}
-	if ((use_udp_tunneling) && (SCTP_BASE_VAR(userspace_udpsctp) > -1)) {
+	if ((use_udp_tunneling) && (SCTP_BASE_VAR(userspace_udpsctp) != -1)) {
 		if ((res = sendmsg(SCTP_BASE_VAR(userspace_udpsctp), &msg_hdr, MSG_DONTWAIT)) != send_len) {
 			*result = errno;
 		}
@@ -3021,14 +3021,14 @@ sctp_userspace_ip_output(int *result, struct mbuf *o_pak,
 	win_msg_hdr.Control = winbuf;
 	win_msg_hdr.dwFlags = 0;
 
-	if ((!use_udp_tunneling) && (SCTP_BASE_VAR(userspace_rawsctp) > -1)) {
+	if ((!use_udp_tunneling) && (SCTP_BASE_VAR(userspace_rawsctp) != -1)) {
 		if (WSASendTo(SCTP_BASE_VAR(userspace_rawsctp), (LPWSABUF) send_iovec, iovcnt, &win_sent_len, win_msg_hdr.dwFlags, win_msg_hdr.name, (int) win_msg_hdr.namelen, NULL, NULL) != 0) {
 			*result = WSAGetLastError();
 		} else if (win_sent_len != send_len) {
 			*result = WSAGetLastError();
 		}
 	}
-	if ((use_udp_tunneling) && (SCTP_BASE_VAR(userspace_udpsctp) > -1)) {
+	if ((use_udp_tunneling) && (SCTP_BASE_VAR(userspace_udpsctp) != -1)) {
 		if (WSASendTo(SCTP_BASE_VAR(userspace_udpsctp), (LPWSABUF) send_iovec, iovcnt, &win_sent_len, win_msg_hdr.dwFlags, win_msg_hdr.name, (int) win_msg_hdr.namelen, NULL, NULL) != 0) {
 			*result = WSAGetLastError();
 		} else if (win_sent_len != send_len) {
@@ -3382,7 +3382,6 @@ USRSCTP_SYSCTL_SET_DEF(sctp_asconf_enable)
 USRSCTP_SYSCTL_SET_DEF(sctp_reconfig_enable)
 USRSCTP_SYSCTL_SET_DEF(sctp_nrsack_enable)
 USRSCTP_SYSCTL_SET_DEF(sctp_pktdrop_enable)
-USRSCTP_SYSCTL_SET_DEF(sctp_strict_sacks)
 #if !defined(SCTP_WITH_NO_CSUM)
 USRSCTP_SYSCTL_SET_DEF(sctp_no_csum_on_loopback)
 #endif
@@ -3420,7 +3419,6 @@ USRSCTP_SYSCTL_SET_DEF(sctp_mbuf_threshold_count)
 USRSCTP_SYSCTL_SET_DEF(sctp_do_drain)
 USRSCTP_SYSCTL_SET_DEF(sctp_hb_maxburst)
 USRSCTP_SYSCTL_SET_DEF(sctp_abort_if_one_2_one_hits_limit)
-USRSCTP_SYSCTL_SET_DEF(sctp_strict_data_order)
 USRSCTP_SYSCTL_SET_DEF(sctp_min_residual)
 USRSCTP_SYSCTL_SET_DEF(sctp_max_retran_chunk)
 USRSCTP_SYSCTL_SET_DEF(sctp_logging_level)
@@ -3464,7 +3462,6 @@ USRSCTP_SYSCTL_GET_DEF(sctp_asconf_enable)
 USRSCTP_SYSCTL_GET_DEF(sctp_reconfig_enable)
 USRSCTP_SYSCTL_GET_DEF(sctp_nrsack_enable)
 USRSCTP_SYSCTL_GET_DEF(sctp_pktdrop_enable)
-USRSCTP_SYSCTL_GET_DEF(sctp_strict_sacks)
 #if !defined(SCTP_WITH_NO_CSUM)
 USRSCTP_SYSCTL_GET_DEF(sctp_no_csum_on_loopback)
 #endif
@@ -3502,7 +3499,6 @@ USRSCTP_SYSCTL_GET_DEF(sctp_mbuf_threshold_count)
 USRSCTP_SYSCTL_GET_DEF(sctp_do_drain)
 USRSCTP_SYSCTL_GET_DEF(sctp_hb_maxburst)
 USRSCTP_SYSCTL_GET_DEF(sctp_abort_if_one_2_one_hits_limit)
-USRSCTP_SYSCTL_GET_DEF(sctp_strict_data_order)
 USRSCTP_SYSCTL_GET_DEF(sctp_min_residual)
 USRSCTP_SYSCTL_GET_DEF(sctp_max_retran_chunk)
 USRSCTP_SYSCTL_GET_DEF(sctp_logging_level)
