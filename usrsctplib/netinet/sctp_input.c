@@ -783,7 +783,7 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
 		/* put it in the bucket in the vtag hash of assoc's for the system */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
-		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		sctp_send_initiate(stcb->sctp_ep, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	if (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_COOKIE_ECHOED) {
@@ -802,7 +802,7 @@ sctp_handle_nat_colliding_state(struct sctp_tcb *stcb)
 		head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(stcb->asoc.my_vtag, SCTP_BASE_INFO(hashasocmark))];
 		/* put it in the bucket in the vtag hash of assoc's for the system */
 		LIST_INSERT_HEAD(head, stcb, sctp_asocs);
-		sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+		sctp_send_initiate(stcb->sctp_ep, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		return (1);
 	}
 	return (0);
@@ -860,6 +860,13 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 			if (sctp_handle_nat_missing_state(stcb, net)) {
 				return;
 			}
+		} else if (error == SCTP_ALT_COOKIE_REQUIRED) {
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Received ALT_COOKIE required state abort flags:%x\n",
+			                           abort->ch.chunk_flags);
+			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, stcb->sctp_ep, stcb, net,
+		                SCTP_FROM_SCTP_INPUT + SCTP_LOC_6);
+			sctp_send_initiate(stcb->sctp_ep, stcb, (char *)cause->info, SCTP_SO_NOT_LOCKED);
+			return;
 		}
 	} else {
 		error = 0;
@@ -1312,7 +1319,7 @@ sctp_handle_error(struct sctp_chunkhdr *ch,
 				asoc->state &= ~SCTP_STATE_COOKIE_ECHOED;
 				asoc->state |= SCTP_STATE_COOKIE_WAIT;
 				sctp_stop_all_cookie_timers(stcb);
-				sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+				sctp_send_initiate(stcb->sctp_ep, stcb, NULL, SCTP_SO_NOT_LOCKED);
 			}
 			break;
 		case SCTP_CAUSE_UNRESOLVABLE_ADDR:
@@ -3577,7 +3584,7 @@ process_chunk_drop(struct sctp_tcb *stcb, struct sctp_chunk_desc *desc,
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, stcb->sctp_ep,
 					stcb, net,
 			                SCTP_FROM_SCTP_INPUT + SCTP_LOC_27);
-			sctp_send_initiate(stcb->sctp_ep, stcb, SCTP_SO_NOT_LOCKED);
+			sctp_send_initiate(stcb->sctp_ep, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		}
 		break;
 	case SCTP_SELECTIVE_ACK:

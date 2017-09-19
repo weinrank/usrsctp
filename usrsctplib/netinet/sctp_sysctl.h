@@ -125,6 +125,7 @@ struct sctp_sysctl {
 	uint32_t sctp_buffer_splitting;
 	uint32_t sctp_initial_cwnd;
 	uint32_t sctp_blackhole;
+	uint32_t sctp_alternative_handshake;
 #if defined(SCTP_DEBUG)
 	uint32_t sctp_debug_on;
 #endif
@@ -564,6 +565,11 @@ struct sctp_sysctl {
 #define SCTPCTL_BLACKHOLE_MIN		0
 #define SCTPCTL_BLACKHOLE_MAX		2
 #define SCTPCTL_BLACKHOLE_DEFAULT	SCTPCTL_BLACKHOLE_MIN
+
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_DESC		"Enable SCTP alternative handshake"
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_MIN		0
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_MAX		1
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_DEFAULT	SCTPCTL_ALTERNATIVE_HANDSHAKE_MIN
 
 #define SCTPCTL_DIAG_INFO_CODE_DESC	"Diagnostic information error cause code"
 #define SCTPCTL_DIAG_INFO_CODE_MIN	0

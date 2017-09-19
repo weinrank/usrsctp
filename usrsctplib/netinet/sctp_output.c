@@ -4479,7 +4479,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			if ((ro->ro_rt != NULL) &&
 			    (net->ro._s_addr)) {
 				uint32_t mtu;
-	
+
 				mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
 				if (mtu > 0) {
 					if (net->port) {
@@ -5044,7 +5044,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 
 void
-sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
+sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, char *cookie, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -5060,7 +5060,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 	int cnt_inits_to = 0;
 	int error;
 	uint16_t num_ext, chunk_len, padding_len, parameter_len;
-
+printf("sctp_send_initiate\n");
 #if defined(__APPLE__)
 	if (so_locked) {
 		sctp_lock_assert(SCTP_INP_SO(inp));
@@ -5133,6 +5133,36 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int so_locked
 		ali->ph.param_type = htons(SCTP_ULP_ADAPTATION);
 		ali->ph.param_length = htons(parameter_len);
 		ali->indication = htonl(inp->sctp_ep.adaptation_layer_indicator);
+		chunk_len += parameter_len;
+	}
+
+printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
+		if (cookie != NULL) {
+			int i;
+			printf("Cookie was sent\n");
+			parameter_len += strlen(cookie);
+			struct sctp_alt_cookie_param *acp;
+			acp = (struct sctp_alt_cookie_param *)(mtod(m, caddr_t) + chunk_len);
+			acp->param_type = htons(SCTP_ALT_COOKIE);
+			printf("set parameter type: SCTP_ALT_COOKIE =%d, htons=%d\n", SCTP_ALT_COOKIE, htons(SCTP_ALT_COOKIE));
+			acp->param_length = htons(parameter_len);
+			for (i = 0; i < (int)strlen(cookie); i++) {
+				acp->cookie[i] = cookie[i];
+			}
+			padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
+			if (padding_len > 0) {
+				memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
+				chunk_len += padding_len;
+				padding_len = 0;
+			}
+		} else {
+			ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
+			ph->param_type = htons(SCTP_ALT_COOKIE);
+						printf("set parameter type: SCTP_ALT_COOKIE =%d, htons=%d\n", SCTP_ALT_COOKIE, htons(SCTP_ALT_COOKIE));
+			ph->param_length = htons(parameter_len);
+		}
 		chunk_len += parameter_len;
 	}
 
@@ -5555,6 +5585,21 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			return (op_err);
 			break;
 		}
+		case SCTP_ALT_COOKIE:
+		{
+			if (plen == sizeof(struct sctp_paramhdr)) {
+				/* Empty ALT_COOKIE -> send ABORT with Cookie */
+				*abort_processing = 2;
+			} else {
+				/* Compare Cookie with HMAC of remote address */
+				/*struct sctp_gen_error_cause *ec = (struct sctp_gen_error_cause *)phdr;*/
+				*abort_processing = 0;
+				op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_cookie_param), 0, M_NOWAIT, 1, MT_DATA);
+				m_copyback(op_err, 0, plen, (caddr_t)phdr);
+				return (op_err);
+			}
+			break;
+		}
 		default:
 			/*
 			 * we do not recognize the parameter figure out what
@@ -5945,6 +5990,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	int error;
 	struct socket *so;
 	uint16_t num_ext, chunk_len, padding_len, parameter_len;
+	int cookie_accepted = 0;
 
 	if (stcb) {
 		asoc = &stcb->asoc;
@@ -5995,12 +6041,20 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 						       &abort_flag, (struct sctp_chunkhdr *)init_chk, &nat_friendly);
 	if (abort_flag) {
 	do_a_abort:
-		if (op_err == NULL) {
-			char msg[SCTP_DIAG_INFO_LEN];
+		if (abort_flag == 2) {
+			char msg[20];
+			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)src)->sin_addr;
+			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
+			printf("Remote address: %s\n", msg);
+			op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, msg);
+		} else {
+			if (op_err == NULL) {
+				char msg[SCTP_DIAG_INFO_LEN];
 
-			snprintf(msg, sizeof(msg), "%s:%d at %s", __FILE__, __LINE__, __func__);
-			op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
-			                             msg);
+				snprintf(msg, sizeof(msg), "%s:%d at %s", __FILE__, __LINE__, __func__);
+				op_err = sctp_generate_cause(SCTP_BASE_SYSCTL(sctp_diag_info_code),
+				                             msg);
+			}
 		}
 		sctp_send_abort(init_pkt, iphlen, src, dst, sh,
 				init_chk->init.initiate_tag, op_err,
@@ -6009,6 +6063,28 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 #endif
 		                vrf_id, port);
 		return;
+	} else if (op_err) {
+		struct sctp_paramhdr *phr = (struct sctp_paramhdr *)(mtod(op_err, caddr_t));
+		if (ntohs(phr->param_type) == SCTP_ALT_COOKIE) {
+			char msg[20];
+			int i;
+			struct sctp_gen_error_cause *ec;
+			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)src)->sin_addr;
+			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
+			ec = (struct sctp_gen_error_cause *)(mtod(op_err, caddr_t));
+			for (i = 0; i < (int)(ec->length - sizeof(struct sctp_paramhdr)); i++) {
+				if (ec->info[i] != msg[i]) {
+					printf("Cookies are not the same\n");
+					sctp_m_freem(op_err);
+					cookie_accepted = 0;
+					break;
+				}
+			}
+			sctp_m_freem(op_err);
+			cookie_accepted = 1;
+		} else {
+			printf("param_type=%d\n", phr->param_type);
+		}
 	}
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m == NULL) {
@@ -6388,6 +6464,15 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	/* tell him his limit. */
 	initack->init.num_inbound_streams =
 		htons(inp->sctp_ep.max_open_streams_intome);
+
+printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
+		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
+		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
+		ph->param_type = htons(SCTP_ALT_COOKIE);
+		ph->param_length = htons(parameter_len);
+		chunk_len += parameter_len;
+	}
 
 	/* adaptation layer indication parameter */
 	if (inp->sctp_ep.adaptation_layer_indicator_provided) {
@@ -10705,7 +10790,7 @@ do_it_again:
 			 */
 			un_sent = stcb->asoc.total_output_queue_size - stcb->asoc.total_flight;
 			if ((un_sent < (int)(stcb->asoc.smallest_mtu - SCTP_MIN_OVERHEAD)) &&
-			    (stcb->asoc.total_flight > 0)) { 
+			    (stcb->asoc.total_flight > 0)) {
 /*	&&		     sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXPLICIT_EOR))) {*/
 				break;
 			}
@@ -10842,7 +10927,7 @@ send_forward_tsn(struct sctp_tcb *stcb,
 	}
 	asoc->fwd_tsn_cnt++;
 	chk->copy_by_ref = 0;
-	/* 
+	/*
 	 * We don't do the old thing here since
 	 * this is used not for on-wire but to
 	 * tell if we are sending a fwd-tsn by
@@ -14397,7 +14482,7 @@ skip_preblock:
 					/* a collision took us forward? */
 					queue_only = 0;
 				} else {
-					sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+					sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 					SCTP_SET_STATE(asoc, SCTP_STATE_COOKIE_WAIT);
 					queue_only = 1;
 				}
@@ -14693,7 +14778,7 @@ skip_out_eof:
 			/* a collision took us forward? */
 			queue_only = 0;
 		} else {
-			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+			sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 			SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_WAIT);
 			queue_only = 1;
 		}

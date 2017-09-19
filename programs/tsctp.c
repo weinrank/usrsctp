@@ -588,6 +588,8 @@ int main(int argc, char **argv)
 #endif
 	usrsctp_sysctl_set_sctp_blackhole(2);
 	usrsctp_sysctl_set_sctp_enable_sack_immediately(1);
+	printf("set sctp_alternative_handshake\n");
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 	if (client) {
 		if (use_cb) {

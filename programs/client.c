@@ -107,9 +107,11 @@ main(int argc, char *argv[])
 		usrsctp_init(9899, NULL, debug_printf);
 	}
 #ifdef SCTP_DEBUG
-	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
+	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
 #endif
 	usrsctp_sysctl_set_sctp_blackhole(2);
+	printf("set sctp_alternative_handshake\n");
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 	if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, receive_cb, NULL, 0, NULL)) == NULL) {
 		perror("usrsctp_socket");
 	}
@@ -150,6 +152,7 @@ main(int argc, char *argv[])
 			perror("usrsctp_connect");
 		}
 	} else if (inet_pton(AF_INET, argv[1], &addr4.sin_addr) == 1) {
+	printf("call usrsctp_connect\n");
 		if (usrsctp_connect(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
 			perror("usrsctp_connect");
 		}

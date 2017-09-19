@@ -2049,6 +2049,7 @@ soconnect(struct socket *so, struct sockaddr *nam)
 		switch (nam->sa_family) {
 #if defined(INET)
 		case AF_INET:
+		printf("call sctp_connect\n");
 			error = sctp_connect(so, nam);
 			break;
 #endif
@@ -3454,6 +3455,7 @@ USRSCTP_SYSCTL_SET_DEF(sctp_udp_tunneling_port)
 USRSCTP_SYSCTL_SET_DEF(sctp_enable_sack_immediately)
 USRSCTP_SYSCTL_SET_DEF(sctp_vtag_time_wait)
 USRSCTP_SYSCTL_SET_DEF(sctp_blackhole)
+USRSCTP_SYSCTL_SET_DEF(sctp_alternative_handshake)
 USRSCTP_SYSCTL_SET_DEF(sctp_diag_info_code)
 USRSCTP_SYSCTL_SET_DEF(sctp_fr_max_burst_default)
 USRSCTP_SYSCTL_SET_DEF(sctp_path_pf_threshold)
@@ -3535,6 +3537,7 @@ USRSCTP_SYSCTL_GET_DEF(sctp_udp_tunneling_port)
 USRSCTP_SYSCTL_GET_DEF(sctp_enable_sack_immediately)
 USRSCTP_SYSCTL_GET_DEF(sctp_vtag_time_wait)
 USRSCTP_SYSCTL_GET_DEF(sctp_blackhole)
+USRSCTP_SYSCTL_GET_DEF(sctp_alternative_handshake)
 USRSCTP_SYSCTL_GET_DEF(sctp_diag_info_code)
 USRSCTP_SYSCTL_GET_DEF(sctp_fr_max_burst_default)
 USRSCTP_SYSCTL_GET_DEF(sctp_path_pf_threshold)

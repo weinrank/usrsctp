@@ -444,6 +444,8 @@ extern void getwintimeofday(struct timeval *tv);
  */
 #define SCTP_SUPPORTED_CHUNK_EXT    0x8008
 
+#define SCTP_ALT_COOKIE			0xb007
+
 /*************0xC000 series*************/
 #define SCTP_PRSCTP_SUPPORTED		0xc000
 /* draft-ietf-tsvwg-addip-sctp */

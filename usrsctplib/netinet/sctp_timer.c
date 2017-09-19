@@ -1004,7 +1004,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 		 * complete the rest of its sends.
 		 */
 		stcb->asoc.delayed_connection = 0;
-		sctp_send_initiate(inp, stcb, SCTP_SO_NOT_LOCKED);
+		sctp_send_initiate(inp, stcb, NULL, SCTP_SO_NOT_LOCKED);
 		return (0);
 	}
 	if (SCTP_GET_STATE((&stcb->asoc)) != SCTP_STATE_COOKIE_WAIT) {
@@ -1031,7 +1031,7 @@ sctp_t1init_timer(struct sctp_inpcb *inp,
 		}
 	}
 	/* Send out a new init */
-	sctp_send_initiate(inp, stcb, SCTP_SO_NOT_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_NOT_LOCKED);
 	return (0);
 }
 

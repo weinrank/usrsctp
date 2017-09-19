@@ -81,6 +81,12 @@ struct sctp_paramhdr {
 	uint16_t param_length;	/* parameter length */
 } SCTP_PACKED;
 
+struct sctp_alt_cookie_param {
+	uint16_t param_type;	/* parameter type */
+	uint16_t param_length;	/* parameter length */
+	uint8_t cookie[];
+} SCTP_PACKED;
+
 /*
  * user socket options: socket API defined
  */
@@ -388,6 +394,8 @@ struct sctp_paramhdr {
 
 /* Error causes from RFC4895 */
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
+
+#define SCTP_ALT_COOKIE_REQUIRED		0x1207
 
 /*
  * error cause parameters (user visible)
