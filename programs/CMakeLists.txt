@@ -69,6 +69,8 @@ find_package(Threads)
 #################################################
 
 set(CHECK_PROGRAMS
+    alt-hs-client.c
+    alt-hs-server.c
     client.c
     daytime_server.c
     discard_server.c
