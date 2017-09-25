@@ -78,27 +78,27 @@ main(int argc, char *argv[])
 {
 	struct socket *sock;
 	struct sockaddr_in addr4;
-    struct sockaddr_in6 addr;
+	struct sockaddr_in6 addr;
 
 	int result;
-    char buffer[BUFFER_SIZE];
-    struct sctp_udpencaps encaps;
-    int n;
-    socklen_t infolen;
+	char buffer[BUFFER_SIZE];
+	struct sctp_udpencaps encaps;
+	int n;
+	socklen_t infolen;
 	struct sctp_rcvinfo rcv_info;
 	unsigned int infotype;
-    int flags;
+	int flags;
 	socklen_t from_len;
-    int loop_count;
-    struct timeval time_start, time_now, time_diff;
-    double seconds;
+	int loop_count;
+	struct timeval time_start, time_now, time_diff;
+	double seconds;
 
 	result = 0;
 
-    if (argc < 2) {
-        printf("Not enough arguments!\n");
-        exit(EXIT_FAILURE);
-    }
+	if (argc < 2) {
+		printf("Not enough arguments!\n");
+		exit(EXIT_FAILURE);
+	}
 
 	usrsctp_init(9889, NULL, debug_printf);
 
@@ -108,80 +108,82 @@ main(int argc, char *argv[])
 
 	usrsctp_sysctl_set_sctp_blackhole(2);
 
-    gettimeofday(&time_start, NULL);
+	gettimeofday(&time_start, NULL);
 
-    for (loop_count = 0; loop_count < 24; loop_count++) {
-    	if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
-    		perror("usrsctp_socket");
-    		result = 1;
-    		goto out;
-    	}
+	for (loop_count = 0; loop_count < 24; loop_count++) {
+		if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
+			perror("usrsctp_socket");
+			result = 1;
+			goto out;
+		}
 
-        memset(&encaps, 0, sizeof(struct sctp_udpencaps));
-        encaps.sue_address.ss_family = AF_INET6;
-        encaps.sue_port = htons(9899);
-        if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_REMOTE_UDP_ENCAPS_PORT, (const void *)&encaps, (socklen_t)sizeof(struct sctp_udpencaps)) < 0) {
-            perror("setsockopt");
-            usrsctp_close(sock);
-            result = 3;
-            goto out;
-        }
+		memset(&encaps, 0, sizeof(struct sctp_udpencaps));
+		encaps.sue_address.ss_family = AF_INET6;
+		encaps.sue_port = htons(9899);
+		if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_REMOTE_UDP_ENCAPS_PORT, (const void *)&encaps, (socklen_t)sizeof(struct sctp_udpencaps)) < 0) {
+			perror("setsockopt");
+			usrsctp_close(sock);
+			result = 3;
+			goto out;
+		}
 
-    	memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
+		memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
 
-    #ifdef HAVE_SIN_LEN
-    	addr4.sin_len = sizeof(struct sockaddr_in);
-    #endif
+	#ifdef HAVE_SIN_LEN
+		addr4.sin_len = sizeof(struct sockaddr_in);
+	#endif
 
-    	addr4.sin_family   = AF_INET;
-    	addr4.sin_port     = htons(80);
+		addr4.sin_family   = AF_INET;
+		addr4.sin_port     = htons(80);
 
-    	if (inet_pton(AF_INET, argv[1], &addr4.sin_addr) == 1) {
-    		if (usrsctp_connect(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
-    			perror("usrsctp_connect");
-    			usrsctp_close(sock);
-    			result = 5;
-    			goto out;
-    		}
-    	} else {
-    		printf("Illegal destination address\n");
-    		usrsctp_close(sock);
-    		result = 6;
-    		goto out;
-    	}
+		if (inet_pton(AF_INET, argv[1], &addr4.sin_addr) == 1) {
+			if (usrsctp_connect(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
+				perror("usrsctp_connect");
+				usrsctp_close(sock);
+				result = 5;
+				goto out;
+			}
+		} else {
+			printf("Illegal destination address\n");
+			usrsctp_close(sock);
+			result = 6;
+			goto out;
+		}
 
-    	/* send GET request */
-    	if (usrsctp_sendv(sock, request, strlen(request), NULL, 0, NULL, 0, SCTP_SENDV_NOINFO, 0) < 0) {
-    		perror("usrsctp_sendv");
-    		usrsctp_close(sock);
-    		result = 6;
-    		goto out;
-    	}
+		/* send GET request */
+		if (usrsctp_sendv(sock, request, strlen(request), NULL, 0, NULL, 0, SCTP_SENDV_NOINFO, 0) < 0) {
+			perror("usrsctp_sendv");
+			usrsctp_close(sock);
+			result = 6;
+			goto out;
+		}
 
-        while (1) {
-            from_len = (socklen_t)sizeof(struct sockaddr_in6);
-            flags = 0;
-            infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
-            n = usrsctp_recvv(sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info, &infolen, &infotype, &flags);
+		while (1) {
+			from_len = (socklen_t)sizeof(struct sockaddr_in6);
+			flags = 0;
+			infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
+			n = usrsctp_recvv(sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info, &infolen, &infotype, &flags);
 
-            //printf("received %d bytes\n", n);
-            if (n < 0) {
-                printf("something failed\n");
-                exit(EXIT_FAILURE);
-            }
+			//printf("received %d bytes\n", n);
+			if (n < 0) {
+				printf("something failed\n");
+				exit(EXIT_FAILURE);
+			}
 
-            if (n == 0) {
-                usrsctp_close(sock);
-                break;
-            }
-        }
-    }
-    gettimeofday(&time_now, NULL);
-    timersub(&time_now, &time_start, &time_diff);
-    seconds = time_diff.tv_sec + (double)time_diff.tv_usec/1000000.0;
+			if (n == 0) {
+				usrsctp_close(sock);
+				break;
+			}
+		}
+	}
+	gettimeofday(&time_now, NULL);
+	timersub(&time_now, &time_start, &time_diff);
+	seconds = time_diff.tv_sec + (double)time_diff.tv_usec/1000000.0;
 
-    printf("finished %d requests in %f seconds\n", loop_count, seconds);
 
+//#    printf("finished %d requests in %f seconds\n", loop_count, seconds);
+	//printf("%d %f %lu\n", loop_count, seconds, strlen(request));
+	printf("%f", seconds);
 
 out:
 	while (usrsctp_finish() != 0) {

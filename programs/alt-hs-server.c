@@ -121,10 +121,10 @@ main(int argc, char *argv[])
 		flags = 0;
 		infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
 		n = usrsctp_recvv(conn_sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info,
-		                  &infolen, &infotype, &flags);
+						  &infolen, &infotype, &flags);
 		if (n > 0) {
 			if (usrsctp_sendv(conn_sock, response, strlen(response), NULL, 0, (void *)&sndinfo,
-			                  (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+							  (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
 				perror("usrsctp_sendv");
 			}
 		}
