@@ -95,7 +95,7 @@ sctp_do_peeloff(struct socket *head, struct socket *so, sctp_assoc_t assoc_id)
 	struct sctp_inpcb *inp, *n_inp;
 	struct sctp_tcb *stcb;
 	uint32_t state;
-
+printf("%s:%d\n", __func__, __LINE__);
 	inp = (struct sctp_inpcb *)head->so_pcb;
 	if (inp == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PEELOFF, EFAULT);

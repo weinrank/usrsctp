@@ -62,5 +62,11 @@ void sctp_reset_in_stream(struct sctp_tcb *stcb, uint32_t number_entries,
 
 int sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked);
 
+void sctp_stop_all_cookie_timers(struct sctp_tcb *stcb);
+
+int sctp_process_init(struct sctp_init_chunk *cp, struct sctp_tcb *stcb);
+
+void sctp_start_net_timers(struct sctp_tcb *stcb);
+
 #endif
 #endif

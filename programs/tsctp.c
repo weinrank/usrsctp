@@ -321,7 +321,7 @@ server_receive_cb(struct socket *sock, union sctp_sockstore addr, void *data,
 	}
 	sum += datalen;
 	messages++;
-
+printf("Message #%lu adds up to %llu bytes\n", messages, sum);
 	free(data);
 	return (1);
 }

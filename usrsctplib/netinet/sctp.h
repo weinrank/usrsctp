@@ -81,12 +81,6 @@ struct sctp_paramhdr {
 	uint16_t param_length;	/* parameter length */
 } SCTP_PACKED;
 
-struct sctp_alt_cookie_param {
-	uint16_t param_type;	/* parameter type */
-	uint16_t param_length;	/* parameter length */
-	uint8_t cookie[];
-} SCTP_PACKED;
-
 /*
  * user socket options: socket API defined
  */

@@ -1707,11 +1707,13 @@ sctp_timeout_handler(void *t)
 	tmr->stopped_from = 0xa006;
 
 	if (stcb) {
+	printf("%s:%d\n", __func__, __LINE__);
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		if ((type != SCTP_TIMER_TYPE_ASOCKILL) &&
 		    ((stcb->asoc.state == 0) ||
 		     (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED))) {
+		     printf("%s:%d\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 			if (inp) {
 				SCTP_INP_DECR_REF(inp);
@@ -2035,6 +2037,7 @@ sctp_timeout_handler(void *t)
 	}
 get_out:
 	if (stcb) {
+	printf("%s:%d\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 	}
 
@@ -3807,7 +3810,9 @@ sctp_ulp_notify(uint32_t notification, struct sctp_tcb *stcb,
 	case SCTP_NOTIFY_ASSOC_DOWN:
 		sctp_notify_assoc_change(SCTP_SHUTDOWN_COMP, stcb, error, NULL, 0, so_locked);
 #if defined(__Userspace__)
+printf("%s:%d\n", __func__, __LINE__);
 		if (stcb->sctp_ep->recv_callback) {
+		printf("%s:%d\n", __func__, __LINE__);
 			if (stcb->sctp_socket) {
 				union sctp_sockstore addr;
 				struct sctp_rcvinfo rcv;

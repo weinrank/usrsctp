@@ -237,10 +237,25 @@ struct sctp_state_cookie {	/* this is our definition... */
 	 */
 } SCTP_PACKED;
 
+/* state cookie header */
+struct sctp_alt_cookie {	/* this is our definition... */
+	struct timeval time_entered;	/* the time I built cookie */
+	uint32_t cookie_life;	/* life I will award this cookie */
+
+	uint32_t address[SCTP_ADDRESS_SIZE];	/* 4 ints/128 bits */
+	uint32_t addr_type;	/* address type */
+} SCTP_PACKED;
+
+
 /* state cookie parameter */
 struct sctp_state_cookie_param {
 	struct sctp_paramhdr ph;
 	struct sctp_state_cookie cookie;
+} SCTP_PACKED;
+
+struct sctp_alt_cookie_param {
+	struct sctp_paramhdr ph;
+	uint8_t cookie[];
 } SCTP_PACKED;
 
 struct sctp_init_chunk {
