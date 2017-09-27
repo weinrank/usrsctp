@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 #ifdef SCTP_DEBUG
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
 #endif
-	usrsctp_sysctl_set_sctp_blackhole(2);
+	//usrsctp_sysctl_set_sctp_blackhole(2);
 
 	if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
 		perror("usrsctp_socket");

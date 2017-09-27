@@ -183,7 +183,7 @@ main(int argc, char *argv[])
 
 //#    printf("finished %d requests in %f seconds\n", loop_count, seconds);
 	//printf("%d %f %lu\n", loop_count, seconds, strlen(request));
-	printf("%f", seconds);
+	printf("%f\n", seconds);
 
 out:
 	while (usrsctp_finish() != 0) {
