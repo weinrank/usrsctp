@@ -456,7 +456,7 @@ sonewconn(struct socket *head, int connstatus)
 {
 	struct socket *so;
 	int over;
-printf("%s:%d\n", __func__, __LINE__);
+
 	ACCEPT_LOCK();
 	over = (head->so_qlen > 3 * head->so_qlimit / 2);
 	ACCEPT_UNLOCK();

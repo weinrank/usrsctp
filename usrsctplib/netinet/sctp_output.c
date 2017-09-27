@@ -3720,13 +3720,13 @@ sctp_process_cmsgs_for_init(struct sctp_tcb *stcb, struct mbuf *control, int *er
 					/* Default is NOT correct */
 					SCTPDBG(SCTP_DEBUG_OUTPUT1, "Ok, default:%d pre_open:%d\n",
 						stcb->asoc.streamoutcnt, stcb->asoc.pre_open_streams);
-					printf("%s:%d UNLOCK\n", __func__, __LINE__);
+
 					SCTP_TCB_UNLOCK(stcb);
 					SCTP_MALLOC(tmp_str,
 					            struct sctp_stream_out *,
 					            (stcb->asoc.pre_open_streams * sizeof(struct sctp_stream_out)),
 					            SCTP_M_STRMO);
-					printf("%s:%d LOCK\n", __func__, __LINE__);
+
 					SCTP_TCB_LOCK(stcb);
 					if (tmp_str != NULL) {
 						SCTP_FREE(stcb->asoc.strmout, SCTP_M_STRMO);
@@ -4138,7 +4138,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 	struct socket *so = NULL;
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 #if defined(__APPLE__)
 	if (so_locked) {
 		sctp_lock_assert(SCTP_INP_SO(inp));
@@ -4147,13 +4147,13 @@ printf("%s:%d\n", __func__, __LINE__);
 		sctp_unlock_assert(SCTP_INP_SO(inp));
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 	if ((net) && (net->dest_state & SCTP_ADDR_OUT_OF_SCOPE)) {
 		SCTP_LTRACE_ERR_RET_PKT(m, inp, stcb, net, SCTP_FROM_SCTP_OUTPUT, EFAULT);
 		sctp_m_freem(m);
 		return (EFAULT);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 #if defined(INET) || defined(INET6)
 	if (stcb) {
 		vrf_id = stcb->asoc.vrf_id;
@@ -4161,7 +4161,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		vrf_id = inp->def_vrf_id;
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* fill in the HMAC digest for any AUTH chunk in the packet */
 	if ((auth != NULL) && (stcb != NULL)) {
 		sctp_fill_hmac_digest_m(m, auth_offset, auth, stcb, auth_keyid);
@@ -4174,7 +4174,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		tos_value = inp->sctp_ep.default_dscp;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	switch (to->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -4182,7 +4182,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		struct ip *ip = NULL;
 		sctp_route_t iproute;
 		int len;
-printf("%s:%d\n", __func__, __LINE__);
+
 		len = SCTP_MIN_V4_OVERHEAD;
 		if (port) {
 			len += sizeof(struct udphdr);
@@ -4193,12 +4193,12 @@ printf("%s:%d\n", __func__, __LINE__);
 			SCTP_LTRACE_ERR_RET(inp, stcb, NULL, SCTP_FROM_SCTP_OUTPUT, ENOMEM);
 			return (ENOMEM);
 		}
-printf("%s:%d\n", __func__, __LINE__);
+
 		SCTP_ALIGN_TO_END(newm, len);
 		SCTP_BUF_LEN(newm) = len;
 		SCTP_BUF_NEXT(newm) = m;
 		m = newm;
-printf("%s:%d\n", __func__, __LINE__);
+
 #if defined(__FreeBSD__)
 		if (net != NULL) {
 			m->m_pkthdr.flowid = net->flowid;
@@ -4209,11 +4209,11 @@ printf("%s:%d\n", __func__, __LINE__);
  		}
 #endif
 		packet_length = sctp_calculate_len(m);
-printf("%s:%d\n", __func__, __LINE__);
+
 		ip = mtod(m, struct ip *);
 		ip->ip_v = IPVERSION;
 		ip->ip_hl = (sizeof(struct ip) >> 2);
-printf("%s:%d\n", __func__, __LINE__);
+
 		if (tos_value == 0) {
 			/*
 			 * This means especially, that it is not set at the
@@ -4225,12 +4225,12 @@ printf("%s:%d\n", __func__, __LINE__);
 			tos_value = inp->inp_ip_tos;
 #endif
 		}
-printf("%s:%d\n", __func__, __LINE__);
+
 		tos_value &= 0xfc;
 		if (ecn_ok) {
 			tos_value |= sctp_get_ect(stcb);
 		}
-printf("%s:%d\n", __func__, __LINE__);
+
 		if ((nofragment_flag) && (port == 0)) {
 #if defined(__FreeBSD__)
 #if __FreeBSD_version >= 1000000
@@ -4260,24 +4260,24 @@ printf("%s:%d\n", __func__, __LINE__);
 		ip->ip_id = htons(ip_id++);
 #endif
 #elif defined(__Userspace__)
-printf("%s:%d\n", __func__, __LINE__);
+
 		ip->ip_id = htons(SCTP_IP_ID(inp)++);
 #else
 		ip->ip_id = SCTP_IP_ID(inp)++;
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 #if defined(__FreeBSD__) || defined(__APPLE__) || defined(__Panda__) || defined(__Windows__) || defined(__Userspace__)
 		ip->ip_ttl = inp->ip_inp.inp.inp_ip_ttl;
 #else
 		ip->ip_ttl = inp->inp_ip_ttl;
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 #if defined(__FreeBSD__) && __FreeBSD_version >= 1000000
 		ip->ip_len = htons(packet_length);
 #else
 		ip->ip_len = packet_length;
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 		ip->ip_tos = tos_value;
 		if (port) {
 			ip->ip_p = IPPROTO_UDP;
@@ -4298,7 +4298,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		/* Now the address selection part */
 		ip->ip_dst.s_addr = ((struct sockaddr_in *)to)->sin_addr.s_addr;
-printf("%s:%d\n", __func__, __LINE__);
+
 		/* call the routine to select the src address */
 		if (net && out_of_asoc_ok == 0) {
 			if (net->ro._s_addr && (net->ro._s_addr->localifa_flags & (SCTP_BEING_DELETED|SCTP_ADDR_IFA_UNUSEABLE))) {
@@ -5074,7 +5074,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, char *cookie, 
 	int cnt_inits_to = 0;
 	int error;
 	uint16_t num_ext, chunk_len, padding_len, parameter_len;
-printf("sctp_send_initiate\n");
+
 #if defined(__APPLE__)
 	if (so_locked) {
 		sctp_lock_assert(SCTP_INP_SO(inp));
@@ -5150,24 +5150,24 @@ printf("sctp_send_initiate\n");
 		chunk_len += parameter_len;
 	}
 
-printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
+
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
 		if (cookie != NULL) {
 			int i;
-			printf("Cookie was sent\n");
+
 			parameter_len += strlen(cookie);
 			struct sctp_alt_cookie_param *acp;
 			acp = (struct sctp_alt_cookie_param *)(mtod(m, caddr_t) + chunk_len);
 			acp->ph.param_type = htons(SCTP_ALT_COOKIE);
 			acp->ph.param_length = htons(parameter_len);
-			printf("acp->param_length=%d strlen(cookie)=%lu\n", ntohs(acp->ph.param_length), strlen(cookie));
+
 			for (i = 0; i < (int)strlen(cookie); i++) {
 				acp->cookie[i] = (uint8_t)cookie[i];
 			}
 			chunk_len += parameter_len;
 			padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
-			printf("parameter_len=%d padding_len=%d\n", parameter_len, padding_len);
+
 			if (padding_len > 0) {
 				memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
 				chunk_len += padding_len;
@@ -5176,8 +5176,7 @@ printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake
 		} else {
 			ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
 			ph->param_type = htons(SCTP_ALT_COOKIE);
-						printf("set parameter type: SCTP_ALT_COOKIE =%d, htons=%d\n", SCTP_ALT_COOKIE, htons(SCTP_ALT_COOKIE));
-			printf("param_type=%d\n", ph->param_type);
+
 			ph->param_length = htons(parameter_len);
 			chunk_len += parameter_len;
 		}
@@ -5368,7 +5367,7 @@ printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake
 		}
 	}
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "Sending INIT - calls lowlevel_output\n");
-	printf("stcb=%p, inp=%p\n", (void*)stcb, (void*)inp);
+
 	if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 	                                        (struct sockaddr *)&net->ro._l_addr,
 	                                        m, 0, NULL, 0, 0, 0, 0,
@@ -5605,21 +5604,21 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		}
 		case SCTP_ALT_COOKIE:
 		{
-			printf("Parameter type: SCTP_ALT_COOKIE\n");
+
 			if (plen == sizeof(struct sctp_paramhdr)) {
 				/* Empty ALT_COOKIE -> send ABORT with Cookie */
-				printf("empty cookie\n");
+
 				*abort_processing = 2;
 				at += padded_size;
 			} else {
 				struct sctp_alt_cookie_param *acp, *new;
 				int i;
 				acp = (struct sctp_alt_cookie_param *)sctp_get_next_param(mat, at, &params, sizeof(params));
-				printf("acp->type=%d acp->length=%d\n", ntohs(acp->ph.param_type), ntohs(acp->ph.param_length));
+
 				*abort_processing = 0;
-				printf("parameter length: %d\n", plen);
+
 				if (op_err == NULL) {
-				printf("op_err noch NULL\n");
+
 					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_cookie_param), 0, M_NOWAIT, 1, MT_DATA);
 					new = mtod(op_err, struct sctp_alt_cookie_param *);
 					new->ph.param_type = acp->ph.param_type;
@@ -5629,7 +5628,7 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					}
 					SCTP_BUF_LEN(op_err) = acp->ph.param_length;
 				}
-				printf("return op_err\n");
+
 				return (op_err);
 			}
 			break;
@@ -6042,10 +6041,10 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 
 	if (stcb) {
 		asoc = &stcb->asoc;
-		printf("stcb=%p, asoc=%p\n", (void *)stcb, (void *)asoc);
+
 	} else {
 		asoc = NULL;
-		printf("Asoc = NULL\n");
+
 	}
 	if ((asoc != NULL) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT)) {
@@ -6092,17 +6091,17 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	if (abort_flag) {
 	do_a_abort:
 		if (abort_flag == 2) {
-		printf("abort_flag = 2\n");
+
 			/*char msg[20];
 			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)src)->sin_addr;
 			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-			printf("Remote address: %s\n", msg);*/
+			//printf("Remote address: %s\n", msg);*/
 			char msg[20];
 			unsigned char temp[1024];
 			uint32_t len;
 			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)dst)->sin_addr;
 			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-			printf("Remote address: %s\n", msg);
+
 			len = sctp_hmac(SCTP_HMAC,
 			  (uint8_t *)inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 			  SCTP_SECRET_SIZE, (uint8_t *)msg, strlen(msg), temp);
@@ -6127,15 +6126,15 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		return;
 	} else if (op_err) {
 		struct sctp_paramhdr *phr = mtod(op_err, struct sctp_paramhdr *);
-		printf("do not abort, as op_err is present\n");
-		printf("type=%d, length=%d\n", phr->param_type, ntohs(phr->param_length));
+
+
 		if (ntohs(phr->param_type) == SCTP_ALT_COOKIE) {
 			char msg[20];
 			unsigned char temp[1024];
 			uint32_t len;
 			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)dst)->sin_addr;
 			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-			printf("Remote address: %s\n", msg);
+
 			len = sctp_hmac(SCTP_HMAC,
 			  (uint8_t *)inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 			  SCTP_SECRET_SIZE, (uint8_t *)msg, strlen(msg), temp);
@@ -6145,23 +6144,23 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/*unsigned char *p = (unsigned char *)&((struct sockaddr_in *)src)->sin_addr;
 			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);*/
 			acp = (struct sctp_alt_cookie_param *)(mtod(op_err, struct sctp_alt_cookie_param *));
-			printf("type=%d length=%d\n", ntohs(acp->ph.param_type), ntohs(acp->ph.param_length));
-			printf("SCTP_ALT_COOKIE len=%d\n", len);
+
+
 			cookie_accepted = 1;
 			sctp_print_digest(acp->cookie, len, "Expected digest");
 			sctp_print_digest(temp, len, "Computed digest");
 			if (memcmp(acp->cookie, temp, len) != 0) {
-				printf("Cookies are not the same\n");
+
 				cookie_accepted = 0;
 				op_err = NULL;
 			}
 			if (cookie_accepted == 1) {
 				/*sctp_m_freem(op_err);*/
 				op_err = NULL;
-				printf("cookie was accepted\n");
+
 			}
 		} else {
-			printf("param_type=%d\n", phr->param_type);
+
 		}
 	}
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
@@ -6462,11 +6461,11 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		memset(stc.reserved, 0, SCTP_RESERVE_SPACE);
 	} else {
 		if (net == NULL) {
-			printf("%s:%d\n", __func__, __LINE__);
+
 			to = src;
 		} else {
 			/* use the net pointer */
-			printf("%s:%d\n", __func__, __LINE__);
+
 			to = (struct sockaddr *)&net->ro._l_addr;
 		}
 
@@ -6490,12 +6489,12 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 		uint32_t vtag, itsn;
 		if (hold_inp_lock) {
 			SCTP_INP_INCR_REF(inp);
-			printf("%s:%d UNLOCK inp\n", __func__, __LINE__);
+
 			SCTP_INP_RUNLOCK(inp);
 		}
 		if (asoc) {
 			atomic_add_int(&asoc->refcnt, 1);
-			printf("%s:%d UNLOCK stcb\n", __func__, __LINE__);
+
 			SCTP_TCB_UNLOCK(stcb);
 		new_tag:
 			vtag = sctp_select_a_tag(inp, inp->sctp_lport, sh->src_port, 1);
@@ -6509,7 +6508,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/* get a TSN to use too */
 			itsn = sctp_select_initial_TSN(&inp->sctp_ep);
 			initack->init.initial_tsn = htonl(itsn);
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+
 			SCTP_TCB_LOCK(stcb);
 			atomic_add_int(&asoc->refcnt, -1);
 		} else {
@@ -6519,7 +6518,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			initack->init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
 		}
 		if (hold_inp_lock) {
-		printf("%s:%d LOCK inp\n", __func__, __LINE__);
+		//printf("%s:%d LOCK inp\n", __func__, __LINE__);
 			SCTP_INP_RLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
 		}
@@ -6560,16 +6559,16 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 	initack->init.num_inbound_streams =
 		htons(inp->sctp_ep.max_open_streams_intome);
 
-printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
+
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
-	printf("make empty SCTP_ALT_COOKIE\n");
+
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
 		ph->param_type = htons(SCTP_ALT_COOKIE);
 		ph->param_length = htons(parameter_len);
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* adaptation layer indication parameter */
 	if (inp->sctp_ep.adaptation_layer_indicator_provided) {
 		parameter_len = (uint16_t)sizeof(struct sctp_adaptation_layer_indication);
@@ -6579,7 +6578,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		ali->indication = htonl(inp->sctp_ep.adaptation_layer_indicator);
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* ECN parameter */
 	if (((asoc != NULL) && (asoc->ecn_supported == 1)) ||
 	    ((asoc == NULL) && (inp->ecn_supported == 1))) {
@@ -6589,7 +6588,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		ph->param_length = htons(parameter_len);
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* PR-SCTP supported parameter */
 	if (((asoc != NULL) && (asoc->prsctp_supported == 1)) ||
 	    ((asoc == NULL) && (inp->prsctp_supported == 1))) {
@@ -6599,7 +6598,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		ph->param_length = htons(parameter_len);
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* Add NAT friendly parameter */
 	if (nat_friendly) {
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
@@ -6608,7 +6607,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		ph->param_length = htons(parameter_len);
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* And now tell the peer which extensions we support */
 	num_ext = 0;
 	pr_supported = (struct sctp_supported_chunk_types_param *)(mtod(m, caddr_t) + chunk_len);
@@ -6620,38 +6619,38 @@ printf("%s:%d\n", __func__, __LINE__);
 			pr_supported->chunk_types[num_ext++] = SCTP_IFORWARD_CUM_TSN;
 		}
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->auth_supported == 1)) ||
 	    ((asoc == NULL) && (inp->auth_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_AUTHENTICATION;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->asconf_supported == 1)) ||
 	    ((asoc == NULL) && (inp->asconf_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_ASCONF;
 		pr_supported->chunk_types[num_ext++] = SCTP_ASCONF_ACK;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->reconfig_supported == 1)) ||
 	    ((asoc == NULL) && (inp->reconfig_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_STREAM_RESET;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->idata_supported == 1)) ||
 	    ((asoc == NULL) && (inp->idata_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_IDATA;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->nrsack_supported == 1)) ||
 	    ((asoc == NULL) && (inp->nrsack_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_NR_SELECTIVE_ACK;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (((asoc != NULL) && (asoc->pktdrop_supported == 1)) ||
 	    ((asoc == NULL) && (inp->pktdrop_supported == 1))) {
 		pr_supported->chunk_types[num_ext++] = SCTP_PACKET_DROPPED;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (num_ext > 0) {
 		parameter_len = (uint16_t)sizeof(struct sctp_supported_chunk_types_param) + num_ext;
 		pr_supported->ph.param_type = htons(SCTP_SUPPORTED_CHUNK_EXT);
@@ -6659,7 +6658,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* add authentication parameters */
 	if (((asoc != NULL) && (asoc->auth_supported == 1)) ||
 	    ((asoc == NULL) && (inp->auth_supported == 1))) {
@@ -6712,7 +6711,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
 		chunk_len += parameter_len;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	SCTP_BUF_LEN(m) = chunk_len;
 	m_last = m;
 	/* now the addresses */
@@ -6731,14 +6730,14 @@ printf("%s:%d\n", __func__, __LINE__);
 	scp.ipv4_local_scope = stc.ipv4_scope;
 	scp.local_scope = stc.local_scope;
 	scp.site_scope = stc.site_scope;
-	printf("%s:%d\n", __func__, __LINE__);
+
 	m_last = sctp_add_addresses_to_i_ia(inp, stcb, &scp, m_last,
 	                                    cnt_inits_to,
 	                                    &padding_len, &chunk_len);
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* tack on the operational error if present */
 	if (op_err) {
-	printf("op_err present\n");
+
 		/* padding_len can only be positive, if no addresses have been added */
 		if (padding_len > 0) {
 			memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
@@ -6757,9 +6756,9 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		chunk_len += parameter_len;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		if (padding_len > 0) {
 			m_last = sctp_add_pad_tombuf(m_last, padding_len);
 			if (m_last == NULL) {
@@ -6790,12 +6789,12 @@ printf("%s:%d\n", __func__, __LINE__);
 		padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* Place in the size, but we don't include
 	 * the last pad (if any) in the INIT-ACK.
 	 */
 	initack->ch.chunk_length = htons(chunk_len);
-printf("%s:%d\n", __func__, __LINE__);
+
 if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
 	/* Time to sign the cookie, we don't sign over the cookie
 	 * signature though thus we set trailer.
@@ -6804,7 +6803,7 @@ if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
 			  (uint8_t *)inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 			  SCTP_SECRET_SIZE, m_cookie, sizeof(struct sctp_paramhdr),
 			  (uint8_t *)signature, SCTP_SIGNATURE_SIZE);
-printf("%s:%d\n", __func__, __LINE__);
+
 		if (stc.loopback_scope) {
 			over_addr = (union sctp_sockstore *)dst;
 		} else {
@@ -6813,7 +6812,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		over_addr = NULL;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/*
 	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
 	 * here since the timer will drive a retranmission.
@@ -6824,7 +6823,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			return;
 		}
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 
 
 	if ((error = sctp_lowlevel_chunk_output(inp, NULL, NULL, to, m, 0, NULL, 0, 0,
@@ -6850,14 +6849,14 @@ printf("%s:%d\n", __func__, __LINE__);
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
 
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
-		printf("Can we populate assoc? stcb=%p\n", (void *)stcb);
+
 		if (hold_inp_lock) {
-			printf("inp is locked\n");
+
 			SCTP_INP_INCR_REF(inp);
-			printf("%s:%d UNLOCK inp\n", __func__, __LINE__);
+
 			SCTP_INP_RUNLOCK(inp);
 		} else {
-			printf("inp is not locked\n");
+
 		}
 		stcb = sctp_aloc_assoc(inp, to, &error,
 		                       ntohl(initack->init.initiate_tag), vrf_id,
@@ -6871,9 +6870,9 @@ printf("%s:%d\n", __func__, __LINE__);
 		                       (struct proc *)NULL
 #endif
 		                       );
-		printf("stcb now %p\n", (void *)stcb);
+
 		if (hold_inp_lock) {
-		printf("%s:%d LOCK inp\n", __func__, __LINE__);
+
 			SCTP_INP_RLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
 		}
@@ -6891,7 +6890,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			return;
 		}
 		asoc = &stcb->asoc;
-		printf("asoc=%p\n", (void *)asoc);
+
 
 		asoc->scope.ipv4_local_scope = 0;
 		if (net == NULL) {
@@ -6971,11 +6970,11 @@ printf("%s:%d\n", __func__, __LINE__);
 		retval = sctp_process_init(init_chk, stcb);
 		/* process the INIT info (peer's info) */
 	/*	if (net) {
-		printf("net present: process init\n");
+		//printf("net present: process init\n");
 			retval = sctp_process_init(init_chk, stcb);
 		}
 		else {
-		printf("no net yet\n");
+		//printf("no net yet\n");
 			retval = 0;
 		}*/
 		if (retval < 0) {
@@ -6997,7 +6996,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		/* load all addresses */
 		struct mbuf *m_init = sctp_get_mbuf_for_msg(sizeof(struct sctp_init_chunk), 0, M_NOWAIT, 1, MT_DATA);
 		init_chk = mtod(m_init, struct sctp_init_chunk *);
-		printf("init->o_streams=%d\n", init_chk->init.num_outbound_streams);
+		//printf("init->o_streams=%d\n", init_chk->init.num_outbound_streams);
 		if (sctp_load_addresses_from_init(stcb, m_init,
 		    sizeof(struct sctp_init_chunk), chunk_len,
 		    src, dst, to, port)) {
@@ -7019,19 +7018,19 @@ printf("%s:%d\n", __func__, __LINE__);
 		/* update current state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "Cookie_accepted: moving to OPEN state\n");
 		SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 					 stcb->sctp_ep, stcb, asoc->primary_destination);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		}
 		sctp_stop_all_cookie_timers(stcb);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		SCTP_STAT_INCR_COUNTER32(sctps_passiveestab);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
-printf("%s:%d\n", __func__, __LINE__);
+
 		/* set up to notify upper layer */
 		if (((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
 			(stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL)) &&
@@ -7044,7 +7043,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			 * should have went to the other code.. not here.. oh well..
 			 * a bit of protection is worth having..
 			 */
-			 printf("%s:%d\n", __func__, __LINE__);
+
 			stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 	#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -7057,12 +7056,12 @@ printf("%s:%d\n", __func__, __LINE__);
 				return (NULL);
 			}
 	#endif
-	printf("%s:%d\n", __func__, __LINE__);
+
 			soisconnected(stcb->sctp_socket);
 	#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_SOCKET_UNLOCK(so, 1);
 	#endif
-	printf("%s:%d\n", __func__, __LINE__);
+
 		} else if ((stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) &&
 				   (SCTP_IS_LISTENING(inp))) {
 			/*
@@ -7071,7 +7070,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			 * accepted connections in the caller.
 			 */
 			;
-			printf("%s:%d\n", __func__, __LINE__);
+
 		}
 		/* since we did not send a HB make sure we don't double things */
 		/*if ((netp) && (*netp))
@@ -7088,7 +7087,7 @@ printf("%s:%d\n", __func__, __LINE__);
 							  &cookie->time_entered, sctp_align_unsafe_makecopy,
 							  SCTP_RTT_FROM_NON_DATA);
 		}*/
-		printf("%s:%d\n", __func__, __LINE__);
+
 #if 0
 		net = sctp_findnet(stcb, to);
 
@@ -7105,11 +7104,11 @@ printf("%s:%d\n", __func__, __LINE__);
 #if 0
 
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0) {
 				struct socket *nso;
 				struct sctp_inpcb *inp_n;
-printf("%s:%d\n", __func__, __LINE__);
+
 
 				so = inp->sctp_socket;
 #if (defined(__FreeBSD__) && __FreeBSD_version < 700000)
@@ -7813,7 +7812,7 @@ sctp_sendall_iterator(struct sctp_inpcb *inp, struct sctp_tcb *stcb, void *ptr,
 		 * returns with either no TCB or the TCB unlocked, we
 		 * must relock.. to unlock in the iterator timer :-0
 		 */
-		 printf("%s:%d LOCK\n", __func__, __LINE__);
+
 		SCTP_TCB_LOCK(stcb);
 		atomic_add_int(&stcb->asoc.refcnt, -1);
 		goto no_chunk_output;
@@ -10752,7 +10751,7 @@ sctp_chunk_retransmission(struct sctp_inpcb *inp,
 			atomic_add_int(&stcb->asoc.refcnt, 1);
 			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err,
 			                          so_locked);
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			return (SCTP_RETRAN_EXIT);
@@ -14326,7 +14325,7 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_INP_RLOCK(inp);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
 		if (stcb) {
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -14422,7 +14421,7 @@ sctp_lower_sosend(struct socket *so,
 				panic("Error, should hold create lock and I don't?");
 			}
 #endif
-printf("%s:%d LOCK\n", __func__, __LINE__);
+//printf("%s:%d LOCK\n", __func__, __LINE__);
 			stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 			                       inp->sctp_ep.pre_open_stream_count,
 			                       inp->sctp_ep.port,
@@ -14431,12 +14430,12 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 #else
 			                       (struct proc *)NULL);
 #endif
-printf("%s:%d LOCK\n", __func__, __LINE__);
+//printf("%s:%d LOCK\n", __func__, __LINE__);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;
 			}
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 			if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
 				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 				/* Set the connected flag so we can queue data */
@@ -14527,7 +14526,7 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 		uint32_t amount;
 
 		if (hold_tcblock == 0) {
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -14547,7 +14546,7 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 			goto out_unlocked;
 		}
 		stcb->asoc.sb_send_resv += sndlen;
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	} else {
@@ -14631,7 +14630,7 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 			goto out;
 		}
 		if (hold_tcblock) {
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 			hold_tcblock = 0;
 		}
@@ -14699,7 +14698,7 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 			}
 		}
 		if (hold_tcblock == 0) {
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		atomic_add_int(&stcb->asoc.refcnt, -1);
@@ -14732,7 +14731,7 @@ printf("%s:%d LOCK\n", __func__, __LINE__);
 		max_len = 0;
 	}
 	if (hold_tcblock) {
-	printf("%s:%d UNLOCK\n", __func__, __LINE__);
+	//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	}
@@ -14942,7 +14941,7 @@ skip_preblock:
 				sndout = 0;
 				new_tail = NULL;
 				if (hold_tcblock) {
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 					SCTP_TCB_UNLOCK(stcb);
 					hold_tcblock = 0;
 				}
@@ -15028,7 +15027,7 @@ skip_preblock:
 			if ((asoc->prsctp_supported) && (asoc->sent_queue_cnt_removeable > 0)) {
 				/* This is ugly but we must assure locking order */
 				if (hold_tcblock == 0) {
-				printf("%s:%d LOCK\n", __func__, __LINE__);
+				//printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15042,7 +15041,7 @@ skip_preblock:
 					continue;
 				}
 				SCTP_TCB_UNLOCK(stcb);
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				hold_tcblock = 0;
 			}
 			/* wait for space now */
@@ -15053,7 +15052,7 @@ skip_preblock:
 			/* What about the INIT, send it maybe */
 			if (queue_only_for_init) {
 				if (hold_tcblock == 0) {
-				printf("%s:%d LOCK\n", __func__, __LINE__);
+				//printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15132,7 +15131,7 @@ skip_preblock:
 							  SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_LOCKED);
 				}
 				if (hold_tcblock == 1) {
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 					SCTP_TCB_UNLOCK(stcb);
 					hold_tcblock = 0;
 				}
@@ -15262,7 +15261,7 @@ dataless_eof:
 		SCTP_STAT_INCR(sctps_sends_with_eof);
 		error = 0;
 		if (hold_tcblock == 0) {
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -15311,7 +15310,7 @@ dataless_eof:
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 				if (hold_tcblock == 0) {
-				printf("%s:%d LOCK\n", __func__, __LINE__);
+				//printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15353,7 +15352,7 @@ skip_out_eof:
 	}
 	if (queue_only_for_init) {
 		if (hold_tcblock == 0) {
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -15424,7 +15423,7 @@ skip_out_eof:
 		/* We get to have a probe outstanding */
 		if (hold_tcblock == 0) {
 			hold_tcblock = 1;
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_LOCKED);
@@ -15434,7 +15433,7 @@ skip_out_eof:
 		/* Here we do control only */
 		if (hold_tcblock == 0) {
 			hold_tcblock = 1;
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		frag_point = sctp_get_frag_point(stcb, &stcb->asoc);
@@ -15459,7 +15458,7 @@ out_unlocked:
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 	}
 	if ((stcb) && hold_tcblock) {
-	printf("%s:%d UNLOCK\n", __func__, __LINE__);
+	//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 	}
 	if (stcb && free_cnt_applied) {

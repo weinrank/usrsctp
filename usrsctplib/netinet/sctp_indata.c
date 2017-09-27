@@ -77,7 +77,6 @@ void
 sctp_set_rwnd(struct sctp_tcb *stcb, struct sctp_association *asoc)
 {
 	asoc->my_rwnd = sctp_calc_rwnd(stcb, asoc);
-	printf("Calculated my_rwnd to %d\n", asoc->my_rwnd);
 }
 
 /* Calculate what the rwnd would be */
@@ -2635,10 +2634,10 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	int abort_flag = 0, was_a_gap;
 	struct mbuf *m;
 	uint32_t highest_tsn;
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* set the rwnd */
 	sctp_set_rwnd(stcb, &stcb->asoc);
-printf("%s:%d\n", __func__, __LINE__);
+
 	m = *mm;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -2685,14 +2684,14 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* get pointer to the first chunk header */
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 						     sizeof(struct sctp_chunkhdr), (uint8_t *) & chunk_buf);
 	if (ch == NULL) {
 		return (1);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/*
 	 * process all DATA chunks...
 	 */
@@ -2707,7 +2706,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			stop_proc = 1;
 			continue;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((asoc->idata_supported == 1) &&
 		    (ch->chunk_type == SCTP_DATA)) {
 			struct mbuf *op_err;
@@ -2733,7 +2732,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		if ((ch->chunk_type == SCTP_DATA) ||
 		    (ch->chunk_type == SCTP_IDATA)) {
 			int clen;
-printf("%s:%d\n", __func__, __LINE__);
+
 			if (ch->chunk_type == SCTP_DATA) {
 				clen = sizeof(struct sctp_data_chunk);
 			} else {
@@ -2762,13 +2761,13 @@ printf("%s:%d\n", __func__, __LINE__);
 			} else {
 				last_chunk = 0;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
+
 			if (sctp_process_a_data_chunk(stcb, asoc, mm, *offset,
 						      chk_length, net, high_tsn, &abort_flag, &break_flag,
 						      last_chunk, ch->chunk_type)) {
 				num_chunks++;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
+
 			if (abort_flag)
 				return (2);
 
