@@ -6095,7 +6095,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			/*char msg[20];
 			unsigned char *p = (unsigned char *)&((struct sockaddr_in *)src)->sin_addr;
 			snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-			//printf("Remote address: %s\n", msg);*/
+			////printf("Remote address: %s\n", msg);*/
 			char msg[20];
 			unsigned char temp[1024];
 			uint32_t len;
@@ -6518,7 +6518,7 @@ sctp_send_initiate_ack(struct sctp_inpcb *inp, struct sctp_tcb *stcb,
 			initack->init.initial_tsn = htonl(sctp_select_initial_TSN(&inp->sctp_ep));
 		}
 		if (hold_inp_lock) {
-		//printf("%s:%d LOCK inp\n", __func__, __LINE__);
+		////printf("%s:%d LOCK inp\n", __func__, __LINE__);
 			SCTP_INP_RLOCK(inp);
 			SCTP_INP_DECR_REF(inp);
 		}
@@ -6970,11 +6970,11 @@ if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
 		retval = sctp_process_init(init_chk, stcb);
 		/* process the INIT info (peer's info) */
 	/*	if (net) {
-		//printf("net present: process init\n");
+		////printf("net present: process init\n");
 			retval = sctp_process_init(init_chk, stcb);
 		}
 		else {
-		//printf("no net yet\n");
+		////printf("no net yet\n");
 			retval = 0;
 		}*/
 		if (retval < 0) {
@@ -6996,7 +6996,7 @@ if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
 		/* load all addresses */
 		struct mbuf *m_init = sctp_get_mbuf_for_msg(sizeof(struct sctp_init_chunk), 0, M_NOWAIT, 1, MT_DATA);
 		init_chk = mtod(m_init, struct sctp_init_chunk *);
-		//printf("init->o_streams=%d\n", init_chk->init.num_outbound_streams);
+		////printf("init->o_streams=%d\n", init_chk->init.num_outbound_streams);
 		if (sctp_load_addresses_from_init(stcb, m_init,
 		    sizeof(struct sctp_init_chunk), chunk_len,
 		    src, dst, to, port)) {
@@ -14325,7 +14325,7 @@ sctp_lower_sosend(struct socket *so,
 		SCTP_INP_RLOCK(inp);
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
 		if (stcb) {
-		//printf("%s:%d LOCK\n", __func__, __LINE__);
+		////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -14421,7 +14421,7 @@ sctp_lower_sosend(struct socket *so,
 				panic("Error, should hold create lock and I don't?");
 			}
 #endif
-//printf("%s:%d LOCK\n", __func__, __LINE__);
+////printf("%s:%d LOCK\n", __func__, __LINE__);
 			stcb = sctp_aloc_assoc(inp, addr, &error, 0, vrf_id,
 			                       inp->sctp_ep.pre_open_stream_count,
 			                       inp->sctp_ep.port,
@@ -14430,12 +14430,12 @@ sctp_lower_sosend(struct socket *so,
 #else
 			                       (struct proc *)NULL);
 #endif
-//printf("%s:%d LOCK\n", __func__, __LINE__);
+////printf("%s:%d LOCK\n", __func__, __LINE__);
 			if (stcb == NULL) {
 				/* Error is setup for us in the call */
 				goto out_unlocked;
 			}
-			//printf("%s:%d LOCK\n", __func__, __LINE__);
+			////printf("%s:%d LOCK\n", __func__, __LINE__);
 			if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
 				stcb->sctp_ep->sctp_flags |= SCTP_PCB_FLAGS_CONNECTED;
 				/* Set the connected flag so we can queue data */
@@ -14526,7 +14526,7 @@ sctp_lower_sosend(struct socket *so,
 		uint32_t amount;
 
 		if (hold_tcblock == 0) {
-		//printf("%s:%d LOCK\n", __func__, __LINE__);
+		////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -14546,7 +14546,7 @@ sctp_lower_sosend(struct socket *so,
 			goto out_unlocked;
 		}
 		stcb->asoc.sb_send_resv += sndlen;
-		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	} else {
@@ -14630,7 +14630,7 @@ sctp_lower_sosend(struct socket *so,
 			goto out;
 		}
 		if (hold_tcblock) {
-		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 			hold_tcblock = 0;
 		}
@@ -14698,7 +14698,7 @@ sctp_lower_sosend(struct socket *so,
 			}
 		}
 		if (hold_tcblock == 0) {
-		//printf("%s:%d LOCK\n", __func__, __LINE__);
+		////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		atomic_add_int(&stcb->asoc.refcnt, -1);
@@ -14731,7 +14731,7 @@ sctp_lower_sosend(struct socket *so,
 		max_len = 0;
 	}
 	if (hold_tcblock) {
-	//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+	////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		hold_tcblock = 0;
 	}
@@ -14941,7 +14941,7 @@ skip_preblock:
 				sndout = 0;
 				new_tail = NULL;
 				if (hold_tcblock) {
-				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 					SCTP_TCB_UNLOCK(stcb);
 					hold_tcblock = 0;
 				}
@@ -15027,7 +15027,7 @@ skip_preblock:
 			if ((asoc->prsctp_supported) && (asoc->sent_queue_cnt_removeable > 0)) {
 				/* This is ugly but we must assure locking order */
 				if (hold_tcblock == 0) {
-				//printf("%s:%d LOCK\n", __func__, __LINE__);
+				////printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15041,7 +15041,7 @@ skip_preblock:
 					continue;
 				}
 				SCTP_TCB_UNLOCK(stcb);
-				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				hold_tcblock = 0;
 			}
 			/* wait for space now */
@@ -15052,7 +15052,7 @@ skip_preblock:
 			/* What about the INIT, send it maybe */
 			if (queue_only_for_init) {
 				if (hold_tcblock == 0) {
-				//printf("%s:%d LOCK\n", __func__, __LINE__);
+				////printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15131,7 +15131,7 @@ skip_preblock:
 							  SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_LOCKED);
 				}
 				if (hold_tcblock == 1) {
-				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 					SCTP_TCB_UNLOCK(stcb);
 					hold_tcblock = 0;
 				}
@@ -15261,7 +15261,7 @@ dataless_eof:
 		SCTP_STAT_INCR(sctps_sends_with_eof);
 		error = 0;
 		if (hold_tcblock == 0) {
-		//printf("%s:%d LOCK\n", __func__, __LINE__);
+		////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -15310,7 +15310,7 @@ dataless_eof:
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			    (SCTP_GET_STATE(asoc) != SCTP_STATE_SHUTDOWN_ACK_SENT)) {
 				if (hold_tcblock == 0) {
-				//printf("%s:%d LOCK\n", __func__, __LINE__);
+				////printf("%s:%d LOCK\n", __func__, __LINE__);
 					SCTP_TCB_LOCK(stcb);
 					hold_tcblock = 1;
 				}
@@ -15352,7 +15352,7 @@ skip_out_eof:
 	}
 	if (queue_only_for_init) {
 		if (hold_tcblock == 0) {
-		//printf("%s:%d LOCK\n", __func__, __LINE__);
+		////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			hold_tcblock = 1;
 		}
@@ -15423,7 +15423,7 @@ skip_out_eof:
 		/* We get to have a probe outstanding */
 		if (hold_tcblock == 0) {
 			hold_tcblock = 1;
-			//printf("%s:%d LOCK\n", __func__, __LINE__);
+			////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_USR_SEND, SCTP_SO_LOCKED);
@@ -15433,7 +15433,7 @@ skip_out_eof:
 		/* Here we do control only */
 		if (hold_tcblock == 0) {
 			hold_tcblock = 1;
-			//printf("%s:%d LOCK\n", __func__, __LINE__);
+			////printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 		}
 		frag_point = sctp_get_frag_point(stcb, &stcb->asoc);
@@ -15458,7 +15458,7 @@ out_unlocked:
 		SCTP_ASOC_CREATE_UNLOCK(inp);
 	}
 	if ((stcb) && hold_tcblock) {
-	//printf("%s:%d UNLOCK\n", __func__, __LINE__);
+	////printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 	}
 	if (stcb && free_cnt_applied) {

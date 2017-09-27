@@ -2049,7 +2049,7 @@ soconnect(struct socket *so, struct sockaddr *nam)
 		switch (nam->sa_family) {
 #if defined(INET)
 		case AF_INET:
-		printf("call sctp_connect\n");
+		//printf("call sctp_connect\n");
 			error = sctp_connect(so, nam);
 			break;
 #endif

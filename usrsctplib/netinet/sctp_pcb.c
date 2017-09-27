@@ -1350,17 +1350,17 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
-		printf("%s:%d LOCK\n", __func__, __LINE__);
+		//printf("%s:%d LOCK\n", __func__, __LINE__);
 		SCTP_TCB_LOCK(stcb);
 		if (!sctp_does_stcb_own_this_addr(stcb, to)) {
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
 		if (stcb->rport != rport) {
 			/* remote port does not match. */
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 			SCTP_INP_RUNLOCK(inp);
 			continue;
@@ -1564,22 +1564,22 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 			if (stcb == NULL) {
 				goto null_return;
 			}
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 
 			if (stcb->rport != rport) {
 				/* remote port does not match. */
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(stcb);
 				goto null_return;
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(stcb);
 				goto null_return;
 			}
 			if (local && !sctp_does_stcb_own_this_addr(stcb, local)) {
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(stcb);
 				goto null_return;
 			}
@@ -1686,7 +1686,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 					break;
 				}
 			}
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 		}
 	} else {
@@ -1701,15 +1701,15 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 				/* remote port does not match */
 				continue;
 			}
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
 			if (local && !sctp_does_stcb_own_this_addr(stcb, local)) {
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(stcb);
 				continue;
 			}
@@ -1816,7 +1816,7 @@ sctp_findassociation_ep_addr(struct sctp_inpcb **inp_p, struct sockaddr *remote,
 					break;
 				}
 			}
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 		}
 	}
@@ -1876,7 +1876,7 @@ sctp_findasoc_ep_asocid_locked(struct sctp_inpcb *inp, sctp_assoc_t asoc_id, int
 				continue;
 			}
 			if (want_lock) {
-			printf("%s:%d LOCK\n", __func__, __LINE__);
+			//printf("%s:%d LOCK\n", __func__, __LINE__);
 				SCTP_TCB_LOCK(stcb);
 			}
 			return (stcb);
@@ -2314,9 +2314,9 @@ sctp_pcb_findep(struct sockaddr *nam, int find_tcp_pool, int have_lock,
 	}
 	head = &SCTP_BASE_INFO(sctp_ephash)[SCTP_PCBHASH_ALLADDR(lport,
 	    SCTP_BASE_INFO(hashmark))];
-	printf("head=%p\n", (void *)head);
+	//printf("head=%p\n", (void *)head);
 	inp = sctp_endpoint_probe(nam, head, lport, vrf_id);
-printf("inp=%p\n", (void *)inp);
+//printf("inp=%p\n", (void *)inp);
 	/*
 	 * If the TCP model exists it could be that the main listening
 	 * endpoint is gone but there still exists a connected socket for this
@@ -2519,15 +2519,15 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 	SCTP_INP_INFO_RLOCK();
 	head = &SCTP_BASE_INFO(sctp_asochash)[SCTP_PCBHASH_ASOC(vtag,
 	                                                        SCTP_BASE_INFO(hashasocmark))];
-	
+
 	LIST_FOREACH(stcb, head, sctp_asocs) {
-	
+
 		SCTP_INP_RLOCK(stcb->sctp_ep);
-		
+
 		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
-		
+
 			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			
+
 			continue;
 		}
 #ifdef SCTP_MVRF
@@ -2543,40 +2543,40 @@ sctp_findassoc_by_vtag(struct sockaddr *from, struct sockaddr *to, uint32_t vtag
 #else
 
 		if (stcb->sctp_ep->def_vrf_id != vrf_id) {
-		
+
 			SCTP_INP_RUNLOCK(stcb->sctp_ep);
-			
+
 			continue;
 		}
 #endif
-printf("%s:%d: TRYLOCK\n", __func__, __LINE__);
+//printf("%s:%d: TRYLOCK\n", __func__, __LINE__);
 		SCTP_TCB_TRYLOCK(stcb);
-printf("%s:%d LOCKED\n", __func__, __LINE__);
+//printf("%s:%d LOCKED\n", __func__, __LINE__);
 		SCTP_INP_RUNLOCK(stcb->sctp_ep);
-		
+
 		if (stcb->asoc.my_vtag == vtag) {
-		
+
 			/* candidate */
 			if (stcb->rport != rport) {
 				SCTP_TCB_UNLOCK(stcb);
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				continue;
 			}
 			if (stcb->sctp_ep->sctp_lport != lport) {
 				SCTP_TCB_UNLOCK(stcb);
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				continue;
 			}
 			if (stcb->asoc.state & SCTP_STATE_ABOUT_TO_BE_FREED) {
 				SCTP_TCB_UNLOCK(stcb);
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				continue;
 			}
 			/* RRS:Need toaddr check here */
 			if (sctp_does_stcb_own_this_addr(stcb, to) == 0) {
 			        /* Endpoint does not own this address */
 				SCTP_TCB_UNLOCK(stcb);
-				printf("%s:%d UNLOCK\n", __func__, __LINE__);
+				//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 				continue;
 			}
 			if (remote_tag) {
@@ -2585,14 +2585,14 @@ printf("%s:%d LOCKED\n", __func__, __LINE__);
 					/* If both tags match we consider it conclusive
 					 * and check NO source/destination addresses
 					 */
-					 
+
 					goto conclusive;
 				}
 			}
 			if (skip_src_check) {
 			conclusive:
 			        if (from) {
-			        
+
 					*netp = sctp_findnet(stcb, from);
 				} else {
 					*netp = NULL;	/* unknown */
@@ -2600,13 +2600,13 @@ printf("%s:%d LOCKED\n", __func__, __LINE__);
 				if (inp_p)
 					*inp_p = stcb->sctp_ep;
 				SCTP_INP_INFO_RUNLOCK();
-				
+
 				return (stcb);
 			}
-			
+
 			net = sctp_findnet(stcb, from);
 			if (net) {
-			
+
 				/* yep its him. */
 				*netp = net;
 				SCTP_STAT_INCR(sctps_vtagexpress);
@@ -2618,16 +2618,16 @@ printf("%s:%d LOCKED\n", __func__, __LINE__);
 				 * not him, this should only happen in rare
 				 * cases so I peg it.
 				 */
-				 
+
 				SCTP_STAT_INCR(sctps_vtagbogus);
 			}
 		}
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 	}
-	
+
 	SCTP_INP_INFO_RUNLOCK();
-	
+
 	return (NULL);
 }
 
@@ -2646,29 +2646,29 @@ sctp_findassociation_addr(struct mbuf *m, int offset,
 	struct sctp_inpcb *inp;
 
 	if (sh->v_tag) {
-	
+
 		/* we only go down this path if vtag is non-zero */
 		stcb = sctp_findassoc_by_vtag(src, dst, ntohl(sh->v_tag),
 		                              inp_p, netp, sh->src_port, sh->dest_port, 0, vrf_id, 0);
-		
+
 		if (stcb) {
-		
-		printf("stcb=%p\n", (void *)stcb);
+
+		//printf("stcb=%p\n", (void *)stcb);
 			return (stcb);
 		}
 	}
 
 	if (inp_p) {
-	
+
 		stcb = sctp_findassociation_addr_sa(src, dst, inp_p, netp,
 		                                    1, vrf_id);
 		inp = *inp_p;
-		
+
 	} else {
-	
+
 		stcb = sctp_findassociation_addr_sa(src, dst, &inp, netp,
 		                                    1, vrf_id);
-	
+
 	}
 
 	SCTPDBG(SCTP_DEBUG_PCB1, "stcb:%p inp:%p\n", (void *)stcb, (void *)inp);
@@ -4941,15 +4941,15 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = ENOBUFS;
 		return (NULL);
 	}
-	
+
 	if (firstaddr == NULL) {
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d LOCK inp\n", __func__, __LINE__);
+	//printf("%s:%d LOCK inp\n", __func__, __LINE__);
 	SCTP_INP_RLOCK(inp);
-	
+
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) &&
 	    ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE)) ||
 	     (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {
@@ -4964,7 +4964,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
-	
+
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) ||
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)) {
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) ||
@@ -4975,7 +4975,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			return (NULL);
 		}
 	}
-	
+
 	SCTPDBG(SCTP_DEBUG_PCB3, "Allocate an association for peer:");
 #ifdef SCTP_DEBUG
 	if (firstaddr) {
@@ -5071,9 +5071,9 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d UNLOCK inp\n", __func__, __LINE__);
+	//printf("%s:%d UNLOCK inp\n", __func__, __LINE__);
 	SCTP_INP_RUNLOCK(inp);
-	
+
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		/*
 		 * If you have not performed a bind, then we need to do the
@@ -5093,12 +5093,12 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			return (NULL);
 		}
 	}
-	
+
 	stcb = SCTP_ZONE_GET(SCTP_BASE_INFO(ipi_zone_asoc), struct sctp_tcb);
-	
+
 	if (stcb == NULL) {
 		/* out of memory? */
-		
+
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, ENOMEM);
 		*error = ENOMEM;
 		return (NULL);
@@ -5112,11 +5112,11 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	SCTP_TCB_LOCK_INIT(stcb);
 	SCTP_TCB_SEND_LOCK_INIT(stcb);
 	stcb->rport = rport;
-	
+
 	/* setup back pointer's */
 	stcb->sctp_ep = inp;
 	stcb->sctp_socket = inp->sctp_socket;
-	
+
 	if ((err = sctp_init_asoc(inp, stcb, override_tag, vrf_id, o_streams))) {
 		/* failed */
 		SCTP_TCB_LOCK_DESTROY(stcb);
@@ -5127,11 +5127,11 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = err;
 		return (NULL);
 	}
-	printf("%s:%d LOCK\n", __func__, __LINE__);
+	//printf("%s:%d LOCK\n", __func__, __LINE__);
 	/* and the port */
 	SCTP_INP_INFO_WLOCK();
 	SCTP_INP_WLOCK(inp);
-	
+
 	if (inp->sctp_flags & (SCTP_PCB_FLAGS_SOCKET_GONE | SCTP_PCB_FLAGS_SOCKET_ALLGONE)) {
 		/* inpcb freed while alloc going on */
 		SCTP_TCB_LOCK_DESTROY(stcb);
@@ -5145,7 +5145,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d LOCK\n", __func__, __LINE__);
+	//printf("%s:%d LOCK\n", __func__, __LINE__);
 	SCTP_TCB_LOCK(stcb);
 
 	/* now that my_vtag is set, add it to the hash */
@@ -5169,7 +5169,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 			asoc->nr_mapping_array = NULL;
 		}
 		SCTP_DECR_ASOC_COUNT();
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_TCB_LOCK_DESTROY(stcb);
 		SCTP_TCB_SEND_LOCK_DESTROY(stcb);
@@ -5541,7 +5541,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			/* nope, reader or writer in the way */
 			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 			/* no asoc destroyed */
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 #ifdef SCTP_LOG_CLOSING
 			sctp_log_closing(inp, stcb, 8);
@@ -5632,7 +5632,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			stcb->asoc.state &= ~SCTP_STATE_IN_ACCEPT_QUEUE;
 			sctp_timer_start(SCTP_TIMER_TYPE_ASOCKILL, inp, stcb, NULL);
 		}
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE))
@@ -5726,7 +5726,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 			SCTP_INP_INFO_WUNLOCK();
 			SCTP_INP_WUNLOCK(inp);
 		}
-		printf("%s:%d UNLOCK\n", __func__, __LINE__);
+		//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 		return (0);
 	}
@@ -6001,7 +6001,7 @@ sctp_free_assoc(struct sctp_inpcb *inp, struct sctp_tcb *stcb, int from_inpcbfre
 	/* Insert new items here :> */
 
 	/* Get rid of LOCK */
-	printf("%s:%d UNLOCK\n", __func__, __LINE__);
+	//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 	SCTP_TCB_UNLOCK(stcb);
 	SCTP_TCB_LOCK_DESTROY(stcb);
 	SCTP_TCB_SEND_LOCK_DESTROY(stcb);
@@ -6347,7 +6347,7 @@ sctp_del_local_addr_ep(struct sctp_inpcb *inp, struct sctp_ifa *ifa)
 					net->src_addr_selected = 0;
 				}
 			}
-			printf("%s:%d UNLOCK\n", __func__, __LINE__);
+			//printf("%s:%d UNLOCK\n", __func__, __LINE__);
 			SCTP_TCB_UNLOCK(stcb);
 		}		/* for each tcb */
 		/* remove it from the ep list */
