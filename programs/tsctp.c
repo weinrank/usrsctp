@@ -586,7 +586,7 @@ int main(int argc, char **argv)
 #ifdef SCTP_DEBUG
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
 #endif
-	usrsctp_sysctl_set_sctp_blackhole(2);
+	//usrsctp_sysctl_set_sctp_blackhole(2);
 	usrsctp_sysctl_set_sctp_enable_sack_immediately(1);
 	printf("set sctp_alternative_handshake\n");
 	usrsctp_sysctl_set_sctp_alternative_handshake(1);
