@@ -32,7 +32,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctp_input.c 323904 2017-09-22 06:33:01Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctp_input.c 324317 2017-10-05 13:29:54Z tuexen $");
 #endif
 
 #include <netinet/sctp_os.h>
@@ -3233,6 +3233,7 @@ printf("call sctp_fill_inp with inp_p=%p\n", (void *)*inp_p);
 				 * an abort for us.
 				 */
 				SCTP_INP_DECR_REF(inp);
+				(*stcb)->info = 0x00000001;
 				return (NULL);
 			}
 			SCTP_INP_DECR_REF(inp);
@@ -3256,6 +3257,7 @@ printf("call sctp_fill_inp with inp_p=%p\n", (void *)*inp_p);
 			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
+			(*stcb)->info = 0x00000002;
 			return (m);
 		}
 	}
@@ -5173,6 +5175,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if ((((ch->chunk_flags & SCTP_HAD_NO_TCB) == 0) &&
 			     (vtag_in == asoc->my_vtag)) ||
 			    (((ch->chunk_flags & SCTP_HAD_NO_TCB) == SCTP_HAD_NO_TCB) &&
+			     (asoc->peer_vtag != htonl(0)) &&
 			     (vtag_in == asoc->peer_vtag))) {
 				/* this is valid */
 			} else {
@@ -5785,6 +5788,16 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				} else {
 					ret_buf = NULL;
 				}
+				if (stcb == locked_tcb) {
+					if (stcb != NULL)
+						stcb->info |= 0x00000010;
+				} else if (locked_tcb == NULL) {
+					if (stcb != NULL)
+						stcb->info |= 0x00000020;
+				} else {
+					if (stcb != NULL)
+						stcb->info |= 0x00000040;
+				}
 				if (linp) {
 					SCTP_ASOC_CREATE_UNLOCK(linp);
 				}
@@ -5795,6 +5808,8 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 					SCTPDBG(SCTP_DEBUG_INPUT3,
 						"GAK, null buffer\n");
 					*offset = length;
+					if (stcb != NULL)
+						stcb->info |= 0x00000100;
 					return (NULL);
 				}
 				/* if AUTH skipped, see if it verified... */
@@ -6182,12 +6197,26 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
 			*offset = length;
+			if (stcb != NULL)
+				stcb->info |= 0x00000200;
 			return (NULL);
 		}
 	}			/* while */
 
 	if (asconf_cnt > 0 && stcb != NULL) {
 		sctp_send_asconf_ack(stcb);
+	}
+	if (stcb != NULL)
+		stcb->info |= 0x00000400;
+	if (stcb == locked_tcb) {
+		if (stcb != NULL)
+			stcb->info |= 0x00001000;
+	} else if (locked_tcb != NULL) {
+		if (stcb != NULL)
+			stcb->info |= 0x00002000;
+	} else {
+		if (stcb != NULL)
+			stcb->info |= 0x00004000;
 	}
 	return (stcb);
 }
@@ -6606,6 +6635,20 @@ trigger_send:
 		SCTP_INP_DECR_REF(inp_decr);
 		SCTP_INP_WUNLOCK(inp_decr);
 	}
+
+	/* go through all our PCB's */
+	SCTP_INP_INFO_RLOCK();
+	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
+		/* process for all associations for this endpoint */
+		SCTP_INP_RLOCK(inp);
+		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
+			KASSERT(pthread_mutex_trylock(&stcb->tcb_mtx) == 0, ("%s: tcb_mtx still locked at %s:%d with info: 0x%x", __func__, stcb->filename, stcb->line, stcb->info));
+			KASSERT(pthread_mutex_unlock(&stcb->tcb_mtx) == 0, ("%s: tcb_mtx not locked", __func__));
+		}
+		SCTP_INP_RUNLOCK(inp);
+	}
+	SCTP_INP_INFO_RUNLOCK();
+
 	return;
 }
 
