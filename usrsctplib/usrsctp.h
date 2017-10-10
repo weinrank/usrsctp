@@ -541,6 +541,8 @@ struct sctp_event_subscribe {
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
 
+#define SCTP_EMPTY_ALT_COOKIE			0x00000033
+
 #define SCTP_ENABLE_STREAM_RESET        0x00000900 /* struct sctp_assoc_value */
 
 /* Pluggable Stream Scheduling Socket option */

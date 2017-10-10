@@ -633,6 +633,10 @@ int main(int argc, char **argv)
 				perror("setsockopt: rcvbuf");
 			}
 		}
+		optval = 1;
+		if (usrsctp_setsockopt(psock, IPPROTO_SCTP, SCTP_EMPTY_ALT_COOKIE, &optval, sizeof(int)) < 0) {
+			perror("setsockopt: SCTP_EMPTY_ALT_COOKIE");
+		}
 		if (verbose) {
 			intlen = sizeof(int);
 			if (usrsctp_getsockopt(psock, SOL_SOCKET, SO_RCVBUF, &myrcvbufsize, (socklen_t *)&intlen) < 0) {
