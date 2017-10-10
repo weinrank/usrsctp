@@ -92,6 +92,7 @@ main(int argc, char *argv[])
 	int loop_count;
 	struct timeval time_start, time_now, time_diff;
 	double seconds;
+	uint8_t first_byte;
 
 	result = 0;
 
@@ -109,7 +110,7 @@ main(int argc, char *argv[])
 
 	//usrsctp_sysctl_set_sctp_blackhole(2);
 
-	gettimeofday(&time_start, NULL);
+	seconds = 0.0;
 
 	for (loop_count = 0; loop_count < 24; loop_count++) {
 		if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
@@ -117,6 +118,9 @@ main(int argc, char *argv[])
 			result = 1;
 			goto out;
 		}
+
+		first_byte = 0;
+		gettimeofday(&time_start, NULL);
 
 		if (argc > 2) {
 			memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
@@ -181,6 +185,13 @@ main(int argc, char *argv[])
 			infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
 			n = usrsctp_recvv(sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info, &infolen, &infotype, &flags);
 
+			if (n > 0 && first_byte == 0) {
+				gettimeofday(&time_now, NULL);
+				timersub(&time_now, &time_start, &time_diff);
+				seconds += time_diff.tv_sec + (double)time_diff.tv_usec / 1000000.0;
+				first_byte = 1;
+			}
+
 			//printf("received %d bytes\n", n);
 			if (n < 0) {
 				printf("something failed\n");
@@ -193,22 +204,14 @@ main(int argc, char *argv[])
 			}
 		}
 	}
-	gettimeofday(&time_now, NULL);
-	timersub(&time_now, &time_start, &time_diff);
-	seconds = time_diff.tv_sec + (double)time_diff.tv_usec/1000000.0;
 
+	seconds = seconds / loop_count;
 
-//#    printf("finished %d requests in %f seconds\n", loop_count, seconds);
-	//printf("%d %f %lu\n", loop_count, seconds, strlen(request));
 	printf("%f\n", seconds);
 
 out:
 	while (usrsctp_finish() != 0) {
-#ifdef _WIN32
-		Sleep(1000);
-#else
 		sleep(1);
-#endif
 	}
 	return (result);
 }
