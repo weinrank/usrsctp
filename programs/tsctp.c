@@ -321,6 +321,7 @@ server_receive_cb(struct socket *sock, union sctp_sockstore addr, void *data,
 	}
 	sum += datalen;
 	messages++;
+	printf("Message #%lu adds up to %llu bytes\n", messages, sum);
 
 	free(data);
 	return (1);
@@ -584,10 +585,12 @@ int main(int argc, char **argv)
 
 	usrsctp_init(local_udp_port, NULL, debug_printf);
 #ifdef SCTP_DEBUG
-	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
+	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
 #endif
 	usrsctp_sysctl_set_sctp_blackhole(2);
 	usrsctp_sysctl_set_sctp_enable_sack_immediately(1);
+	printf("set sctp_alternative_handshake\n");
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 	if (client) {
 		if (use_cb) {
@@ -629,6 +632,10 @@ int main(int argc, char **argv)
 			if (usrsctp_setsockopt(psock, SOL_SOCKET, SO_RCVBUF, &rcvbufsize, sizeof(int)) < 0) {
 				perror("setsockopt: rcvbuf");
 			}
+		}
+		optval = 1;
+		if (usrsctp_setsockopt(psock, IPPROTO_SCTP, SCTP_EMPTY_ALT_COOKIE, &optval, sizeof(int)) < 0) {
+			perror("setsockopt: SCTP_EMPTY_ALT_COOKIE");
 		}
 		if (verbose) {
 			intlen = sizeof(int);

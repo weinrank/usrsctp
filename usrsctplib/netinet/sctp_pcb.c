@@ -1273,8 +1273,8 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 		/* check to see if the ep has one of the addresses */
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
 			/* We are NOT bound all, so look further */
-			int match = 0;
 
+			int match = 0;
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 
 				if (laddr->ifa == NULL) {

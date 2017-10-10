@@ -112,6 +112,7 @@ struct sctp_sysctl {
 	uint32_t sctp_steady_step;
 	uint32_t sctp_use_dccc_ecn;
 	uint32_t sctp_diag_info_code;
+	uint32_t sctp_alternative_handshake;
 #if defined(SCTP_LOCAL_TRACE_BUF)
 #if defined(__Windows__)
 	struct sctp_log *sctp_log;
@@ -569,6 +570,11 @@ struct sctp_sysctl {
 #define SCTPCTL_DIAG_INFO_CODE_MIN	0
 #define SCTPCTL_DIAG_INFO_CODE_MAX	65535
 #define SCTPCTL_DIAG_INFO_CODE_DEFAULT	0
+
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_DESC		"Enable SCTP alternative handshake"
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_MIN		0
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_MAX		1
+#define SCTPCTL_ALTERNATIVE_HANDSHAKE_DEFAULT	SCTPCTL_ALTERNATIVE_HANDSHAKE_MIN
 
 #if defined(SCTP_DEBUG)
 /* debug: Configure debug output */

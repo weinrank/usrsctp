@@ -541,6 +541,8 @@ struct sctp_event_subscribe {
 #define SCTP_DEFAULT_PRINFO             0x00000022
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
 
+#define SCTP_EMPTY_ALT_COOKIE			0x00000033
+
 #define SCTP_ENABLE_STREAM_RESET        0x00000900 /* struct sctp_assoc_value */
 
 /* Pluggable Stream Scheduling Socket option */
@@ -1085,6 +1087,7 @@ USRSCTP_SYSCTL_DECL(sctp_enable_sack_immediately)
 USRSCTP_SYSCTL_DECL(sctp_vtag_time_wait)
 USRSCTP_SYSCTL_DECL(sctp_blackhole)
 USRSCTP_SYSCTL_DECL(sctp_diag_info_code)
+USRSCTP_SYSCTL_DECL(sctp_alternative_handshake)
 USRSCTP_SYSCTL_DECL(sctp_fr_max_burst_default)
 USRSCTP_SYSCTL_DECL(sctp_path_pf_threshold)
 USRSCTP_SYSCTL_DECL(sctp_default_ss_module)

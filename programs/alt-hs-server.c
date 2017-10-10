@@ -1,5 +1,5 @@
 /*
- * Copyright (C) 2011-2013 Michael Tuexen
+ * Copyright (C) 2017 Felix Weinrank
  *
  * All rights reserved.
  *
@@ -76,8 +76,10 @@ main(int argc, char *argv[])
 	unsigned int infotype;
 	socklen_t addr_len;
 	struct sctp_sndinfo sndinfo;
+	int optval;
 
 	usrsctp_init(9899, NULL, debug_printf);
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 #ifdef SCTP_DEBUG
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
@@ -88,20 +90,26 @@ main(int argc, char *argv[])
 		perror("usrsctp_socket");
 	}
 
+	optval = 1;
+	if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_EMPTY_ALT_COOKIE, &optval, sizeof(int)) < 0) {
+		perror("setsockopt: SCTP_EMPTY_ALT_COOKIE");
+	}
+
 	memset(&encaps, 0, sizeof(struct sctp_udpencaps));
-	encaps.sue_address.ss_family = AF_INET6;
-	encaps.sue_port = htons(9889);
+	encaps.sue_address.ss_family 	= AF_INET6;
+	encaps.sue_port 				= htons(9889);
 	if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_REMOTE_UDP_ENCAPS_PORT, (const void*)&encaps, (socklen_t)sizeof(struct sctp_udpencaps)) < 0) {
 		perror("usrsctp_setsockopt SCTP_REMOTE_UDP_ENCAPS_PORT");
 	}
 
 	memset((void *)&addr, 0, sizeof(struct sockaddr_in));
 #ifdef HAVE_SIN_LEN
-	addr.sin_len = sizeof(struct sockaddr_in);
+	addr.sin_len 			= sizeof(struct sockaddr_in);
 #endif
-	addr.sin_family = AF_INET;
-	addr.sin_port = htons(PORT);
-	addr.sin_addr.s_addr = htonl(INADDR_ANY);
+	addr.sin_family 		= AF_INET;
+	addr.sin_port 			= htons(PORT);
+	addr.sin_addr.s_addr 	= htonl(INADDR_ANY);
+
 	if (usrsctp_bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
 		perror("usrsctp_bind");
 	}
@@ -130,7 +138,6 @@ main(int argc, char *argv[])
 		}
 
 		usrsctp_close(conn_sock);
-
 	}
 
 	while (usrsctp_finish() != 0) {

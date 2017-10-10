@@ -2091,7 +2091,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		sctp_timer_start(SCTP_TIMER_TYPE_INIT, inp, stcb, stcb->asoc.primary_destination);
 	} else {
 		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
-		sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+		sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	}
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
@@ -2164,6 +2164,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 	case SCTP_AUTO_ASCONF:
 	case SCTP_DISABLE_FRAGMENTS:
 	case SCTP_I_WANT_MAPPED_V4_ADDR:
+	case SCTP_EMPTY_ALT_COOKIE:
 	case SCTP_USE_EXT_RCVINFO:
 		SCTP_INP_RLOCK(inp);
 		switch (optname) {
@@ -2188,6 +2189,9 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			break;
 		case SCTP_NODELAY:
 			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_NODELAY);
+			break;
+		case SCTP_EMPTY_ALT_COOKIE:
+			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EMPTYALTCOOKIE);
 			break;
 		case SCTP_USE_EXT_RCVINFO:
 			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO);
@@ -4468,6 +4472,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_EXPLICIT_EOR:
 	case SCTP_DISABLE_FRAGMENTS:
 	case SCTP_USE_EXT_RCVINFO:
+	case SCTP_EMPTY_ALT_COOKIE:
 	case SCTP_I_WANT_MAPPED_V4_ADDR:
 		/* copy in the option value */
 		SCTP_CHECK_AND_CAST(mopt, optval, uint32_t, optsize);
@@ -4512,6 +4517,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			break;
 		case SCTP_NODELAY:
 			set_opt = SCTP_PCB_FLAGS_NODELAY;
+			break;
+		case SCTP_EMPTY_ALT_COOKIE:
+			set_opt = SCTP_PCB_FLAGS_EMPTYALTCOOKIE;
 			break;
 		case SCTP_AUTOCLOSE:
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||
@@ -5687,7 +5695,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb,
 					stcb->asoc.primary_destination,
 					SCTP_FROM_SCTP_USRREQ + SCTP_LOC_8);
-			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+			sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 		} else {
 			/*
 			 * already expired or did not use delayed
@@ -7946,7 +7954,7 @@ sctp_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
 	if (create_lock_on) {
@@ -8113,7 +8121,7 @@ sctpconn_connect(struct socket *so, struct sockaddr *addr)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
 	if (create_lock_on) {

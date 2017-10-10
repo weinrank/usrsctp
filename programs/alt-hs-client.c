@@ -101,12 +101,13 @@ main(int argc, char *argv[])
 	}
 
 	usrsctp_init(9889, NULL, debug_printf);
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 #ifdef SCTP_DEBUG
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
 #endif
 
-	usrsctp_sysctl_set_sctp_blackhole(2);
+	//usrsctp_sysctl_set_sctp_blackhole(2);
 
 	gettimeofday(&time_start, NULL);
 

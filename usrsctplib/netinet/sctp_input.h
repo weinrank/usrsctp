@@ -62,5 +62,25 @@ void sctp_reset_in_stream(struct sctp_tcb *stcb, uint32_t number_entries,
 
 int sctp_is_there_unsent_data(struct sctp_tcb *stcb, int so_locked);
 
+void sctp_start_net_timers(struct sctp_tcb *stcb);
+
+struct sctp_tcb *
+sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
+    struct sockaddr *src, struct sockaddr *dst,
+    struct sctphdr *sh, struct sctp_state_cookie *cookie, int cookie_len,
+    struct sctp_inpcb *inp, struct sctp_nets **netp,
+    struct sockaddr *init_src, int *notification,
+    int auth_skipped, uint32_t auth_offset, uint32_t auth_len,
+#if defined(__FreeBSD__)
+    uint8_t mflowtype, uint32_t mflowid,
+#endif
+    uint32_t vrf_id, uint16_t port, int alt);
+
+void
+sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
+    struct sctp_tcb *stcb, struct sctp_nets *netl, struct sockaddr *src,
+    struct sockaddr *dst, struct sctphdr *sh, int had_a_existing_tcb,
+    int notification, int send_int_conf, uint32_t vrf_id, uint16_t port);
+
 #endif
 #endif
