@@ -222,7 +222,6 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 	} else {
 		SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
-
 		sctp_send_initiate_ack(&inp, &stcb, net, m, iphlen, offset,
 		                       src, dst, sh, cp,
 #if defined(__FreeBSD__)
@@ -709,9 +708,9 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 				sctp_abort_association(stcb->sctp_ep, stcb, m, iphlen,
 				                       src, dst, sh, op_err,
 #if defined(__FreeBSD__)
-			                       mflowtype, mflowid,
+				                       mflowtype, mflowid,
 #endif
-			 	                      vrf_id, net->port);
+				                       vrf_id, net->port);
 				*abort_no_unlock = 1;
 			}
 			return (retval);
@@ -1666,18 +1665,6 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 	return (0);
 }
 
-/*static struct sctp_tcb *
-sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
-    struct sockaddr *src, struct sockaddr *dst,
-    struct sctphdr *sh, struct sctp_state_cookie *cookie, int cookie_len,
-    struct sctp_inpcb *inp, struct sctp_nets **netp,
-    struct sockaddr *init_src, int *notification,
-    int auth_skipped, uint32_t auth_offset, uint32_t auth_len,
-#if defined(__FreeBSD__)
-    uint8_t mflowtype, uint32_t mflowid,
-#endif
-    uint32_t vrf_id, uint16_t port);*/
-
 
 /*
  * handle a state cookie for an existing association m: input packet mbuf
@@ -2306,7 +2293,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		SCTPDBG(SCTP_DEBUG_INPUT1, "HUH? process_cookie_new: could not find INIT chunk!\n");
 		return (NULL);
 	}
-
 	initack_offset = init_offset + SCTP_SIZE32(ntohs(init_cp->ch.chunk_length));
 	/*
 	 * find and validate the INIT-ACK chunk in the cookie (my info) the
@@ -2330,6 +2316,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * the INIT and INIT_ACK are tacked onto the cookie...
 	 */
 	initack_limit = offset + cookie_len;
+
 	/*
 	 * now that we know the INIT/INIT-ACK are in place, create a new TCB
 	 * and popluate
@@ -2373,7 +2360,6 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		*netp = sctp_findnet(stcb, init_src);
 
 	asoc = &stcb->asoc;
-
 	/* get scope variables out of cookie */
 	asoc->scope.ipv4_local_scope = cookie->ipv4_scope;
 	asoc->scope.site_scope = cookie->site_scope;
@@ -2963,6 +2949,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			}
 		}
 	}
+
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
 		/* this is the "normal" case... get a new TCB */
@@ -3219,6 +3206,7 @@ sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 				                stcb, 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 			}
+
 			/* Pull it from the incomplete queue and wake the guy */
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			atomic_add_int(&stcb->asoc.refcnt, 1);

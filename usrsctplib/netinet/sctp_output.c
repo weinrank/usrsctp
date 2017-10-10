@@ -3937,6 +3937,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	uint8_t *foo;
 	int sig_offset;
 	uint16_t cookie_sz;
+
 	mret = sctp_get_mbuf_for_msg((sizeof(struct sctp_state_cookie) +
 				      sizeof(struct sctp_paramhdr)), 0,
 				     M_NOWAIT, 1, MT_DATA);
@@ -3975,6 +3976,7 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	ph->param_length = 0;	/* fill in at the end */
 	/* Fill in the stc cookie data */
 	memcpy(stc, stc_in, sizeof(struct sctp_state_cookie));
+
 	/* tack the INIT and then the INIT-ACK onto the chain */
 	cookie_sz = 0;
 	for (m_at = mret; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
@@ -6023,7 +6025,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	struct sctp_inpcb *temp_inp = NULL;
 
 	if ((*stcb)) {
-	//	asoc = &stcb->asoc;
 		asoc = &((*stcb)->asoc);
 	} else {
 		asoc = NULL;
@@ -6120,6 +6121,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	}
 	chunk_len = (uint16_t)sizeof(struct sctp_init_ack_chunk);
 	padding_len = 0;
+
 	/*
 	 * We might not overwrite the identification[] completely and on
 	 * some platforms time_entered will contain some padding.
@@ -6148,6 +6150,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	/* copy in the ports for later check */
 	stc.myport = sh->dest_port;
 	stc.peerport = sh->src_port;
+
 	/*
 	 * If we wanted to honor cookie life extensions, we would add to
 	 * stc.cookie_life. For now we should NOT honor any extension
@@ -6575,6 +6578,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
 		chunk_len += parameter_len;
 	}
+
 	/* add authentication parameters */
 	if (((asoc != NULL) && (asoc->auth_supported == 1)) ||
 	    ((asoc == NULL) && ((*inp)->auth_supported == 1))) {

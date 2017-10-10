@@ -1161,9 +1161,11 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 #ifdef SCTP_MVRF
 	int fnd, i;
 #endif
+
 	if ((to == NULL) || (from == NULL)) {
 		return (NULL);
 	}
+
 	switch (to->sa_family) {
 #ifdef INET
 	case AF_INET:
@@ -1221,6 +1223,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 		case AF_INET:
 		{
 			struct sockaddr_in *sin;
+
 			sin = (struct sockaddr_in *)to;
 			if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
 			                     &sin->sin_addr) != 0) {
@@ -1270,6 +1273,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 		/* check to see if the ep has one of the addresses */
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
 			/* We are NOT bound all, so look further */
+
 			int match = 0;
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 
@@ -1378,6 +1382,7 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 			case AF_INET:
 			{
 				struct sockaddr_in *sin, *rsin;
+
 				sin = (struct sockaddr_in *)&net->ro._l_addr;
 				rsin = (struct sockaddr_in *)from;
 				if (sin->sin_addr.s_addr ==
@@ -2337,6 +2342,7 @@ sctp_findassociation_addr_sa(struct sockaddr *from, struct sockaddr *to,
 {
 	struct sctp_inpcb *inp = NULL;
 	struct sctp_tcb *stcb;
+
 	SCTP_INP_INFO_RLOCK();
 	if (find_tcp_pool) {
 		if (inp_p != NULL) {
