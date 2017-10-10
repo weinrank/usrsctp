@@ -1161,16 +1161,13 @@ sctp_tcb_special_locate(struct sctp_inpcb **inp_p, struct sockaddr *from,
 #ifdef SCTP_MVRF
 	int fnd, i;
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 	if ((to == NULL) || (from == NULL)) {
 		return (NULL);
 	}
-printf("%s:%d\n", __func__, __LINE__);
 	switch (to->sa_family) {
 #ifdef INET
 	case AF_INET:
 		if (from->sa_family == AF_INET) {
-		printf("%s:%d\n", __func__, __LINE__);
 			lport = ((struct sockaddr_in *)to)->sin_port;
 			rport = ((struct sockaddr_in *)from)->sin_port;
 		} else {
@@ -1201,9 +1198,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	default:
 		return (NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	ephead = &SCTP_BASE_INFO(sctp_tcpephash)[SCTP_PCBHASH_ALLADDR((lport | rport), SCTP_BASE_INFO(hashtcpmark))];
-	printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * Ok now for each of the guys in this bucket we must look and see:
 	 * - Does the remote port match. - Does there single association's
@@ -1211,17 +1206,12 @@ printf("%s:%d\n", __func__, __LINE__);
 	 * to this ep and return the tcb from it.
 	 */
 	LIST_FOREACH(inp, ephead, sctp_hash) {
-	printf("%s:%d\n", __func__, __LINE__);
-	printf(" try to lock inp %p\n",(void *)inp);
 		SCTP_INP_RLOCK(inp);
-		printf("%s:%d\n", __func__, __LINE__);
 		if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) {
-		printf("SCTP_PCB_FLAGS_SOCKET_ALLGONE\n");
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
 		if (lport != inp->sctp_lport) {
-		printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
@@ -1231,7 +1221,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		case AF_INET:
 		{
 			struct sockaddr_in *sin;
-printf("%s:%d\n", __func__, __LINE__);
 			sin = (struct sockaddr_in *)to;
 			if (prison_check_ip4(inp->ip_inp.inp.inp_cred,
 			                     &sin->sin_addr) != 0) {
@@ -1278,12 +1267,10 @@ printf("%s:%d\n", __func__, __LINE__);
 			continue;
 		}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 		/* check to see if the ep has one of the addresses */
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_BOUNDALL) == 0) {
 			/* We are NOT bound all, so look further */
 			int match = 0;
-printf("%s:%d\n", __func__, __LINE__);
 			LIST_FOREACH(laddr, &inp->sctp_addr_list, sctp_nxt_addr) {
 
 				if (laddr->ifa == NULL) {
@@ -1341,7 +1328,6 @@ printf("%s:%d\n", __func__, __LINE__);
 #endif
 				}
 			}
-			printf("%s:%d\n", __func__, __LINE__);
 			if (match == 0) {
 				/* This endpoint does not have this address */
 				SCTP_INP_RUNLOCK(inp);
@@ -1354,7 +1340,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		 */
 		/* XXX: Why don't we TAILQ_FOREACH through sctp_asoc_list? */
 		stcb = LIST_FIRST(&inp->sctp_asoc_list);
-		printf("%s:%d\n", __func__, __LINE__);
 		if (stcb == NULL) {
 			SCTP_INP_RUNLOCK(inp);
 			continue;
@@ -1365,7 +1350,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
 		if (stcb->rport != rport) {
 			/* remote port does not match. */
 			SCTP_TCB_UNLOCK(stcb);
@@ -1382,7 +1366,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			continue;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
 		/* Does this TCB have a matching address? */
 		TAILQ_FOREACH(net, &stcb->asoc.nets, sctp_next) {
 
@@ -1395,7 +1378,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			case AF_INET:
 			{
 				struct sockaddr_in *sin, *rsin;
-printf("%s:%d\n", __func__, __LINE__);
 				sin = (struct sockaddr_in *)&net->ro._l_addr;
 				rsin = (struct sockaddr_in *)from;
 				if (sin->sin_addr.s_addr ==
@@ -1460,9 +1442,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(inp);
-		printf("%s:%d\n", __func__, __LINE__);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	return (NULL);
 }
 
@@ -2357,16 +2337,12 @@ sctp_findassociation_addr_sa(struct sockaddr *from, struct sockaddr *to,
 {
 	struct sctp_inpcb *inp = NULL;
 	struct sctp_tcb *stcb;
-printf("%s:%d\n", __func__, __LINE__);
 	SCTP_INP_INFO_RLOCK();
-	printf("%s:%d\n", __func__, __LINE__);
 	if (find_tcp_pool) {
 		if (inp_p != NULL) {
-		printf("%s:%d\n", __func__, __LINE__);
 			stcb = sctp_tcb_special_locate(inp_p, from, to, netp,
 			                               vrf_id);
 		} else {
-		printf("%s:%d\n", __func__, __LINE__);
 			stcb = sctp_tcb_special_locate(&inp, from, to, netp,
 			                               vrf_id);
 		}
@@ -2374,10 +2350,8 @@ printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_INFO_RUNLOCK();
 			return (stcb);
 		}
-		printf("%s:%d\n", __func__, __LINE__);
 	}
 	inp = sctp_pcb_findep(to, 0, 1, vrf_id);
-	printf("%s:%d\n", __func__, __LINE__);
 	if (inp_p != NULL) {
 		*inp_p = inp;
 	}
@@ -2392,15 +2366,12 @@ printf("%s:%d\n", __func__, __LINE__);
 	 * inbound packet side.
 	 */
 	if (inp_p != NULL) {
-	printf("%s:%d\n", __func__, __LINE__);
 		stcb = sctp_findassociation_ep_addr(inp_p, from, netp, to,
 		                                    NULL);
 	} else {
-	printf("%s:%d\n", __func__, __LINE__);
 		stcb = sctp_findassociation_ep_addr(&inp, from, netp, to,
 		                                    NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	return (stcb);
 }
 
@@ -3115,9 +3086,7 @@ sctp_move_pcb_and_assoc(struct sctp_inpcb *old_inp, struct sctp_inpcb *new_inp,
 	atomic_add_int(&stcb->asoc.refcnt, 1);
 	SCTP_TCB_UNLOCK(stcb);
 	SCTP_INP_INFO_WLOCK();
-	printf("lock old_inp %p\n", (void *)old_inp);
 	SCTP_INP_WLOCK(old_inp);
-	printf("lock new_inp %p\n", (void *)new_inp);
 	SCTP_INP_WLOCK(new_inp);
 	SCTP_TCB_LOCK(stcb);
 	atomic_subtract_int(&stcb->asoc.refcnt, 1);
@@ -4923,9 +4892,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	SCTP_INP_RLOCK(inp);
-	printf("%s:%d\n", __func__, __LINE__);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) &&
 	    ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE)) ||
 	     (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {

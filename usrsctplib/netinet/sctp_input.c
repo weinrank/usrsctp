@@ -108,7 +108,6 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	SCTPDBG(SCTP_DEBUG_INPUT2, "sctp_handle_init: handling INIT tcb:%p\n",
 		(void *)stcb);
 	if (stcb == NULL) {
-	printf("lock inp %p\n", (void *)inp);
 		SCTP_INP_RLOCK(inp);
 	}
 	/* validate length */
@@ -223,7 +222,6 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 	} else {
 		SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
-		printf("stcb=%p inp=%p\n", (void *)stcb, (void *)inp);
 
 		sctp_send_initiate_ack(&inp, &stcb, net, m, iphlen, offset,
 		                       src, dst, sh, cp,
@@ -234,13 +232,9 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	}
  outnow:
 	if (stcb == NULL) {
-	printf("stcb=NULL, unlock inp %p\n", (void *)inp);
 		SCTP_INP_RUNLOCK(inp);
-		printf("done\n");
 	} else {
-	/*printf("stcb!=NULL, unlock new inp %p\n", (void *)inp);
-		SCTP_INP_RUNLOCK(inp);*/
-		printf("stcb!=NULL, unlock old inp %p\n", (void *)temp);
+		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(temp);
 	}
 }
@@ -690,17 +684,11 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		}
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 0 ||
 	    (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted == 0)) {
 		retval = sctp_send_cookie_echo(m, offset, stcb, net);
-		printf("%s:%d\n", __func__, __LINE__);
 		if (retval < 0) {
-			/*
-			 * No cookie, we probably should send a op error. But in any
-			 * case if there is no cookie in the INIT-ACK, we can
-			 * abandon the peer, its broke.
-			 */
 			if (retval == -3) {
 				uint16_t len;
 
@@ -731,7 +719,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		return (retval);
 	} else {
 		/* Alternative handshake: go to association open */
-		printf("Alternative handshake: go to association open\n");
 		sctp_move_to_open_active(stcb, net);
 	}
 
@@ -1003,11 +990,6 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 			                           abort->ch.chunk_flags);
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, stcb->sctp_ep, stcb, net,
 			                SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
-			printf("send INIT from ABORT: stcb=%p, inp=%p\n", (void *)stcb, (void *)stcb->sctp_ep);
-			printf("Length info=%lu, cause length=%d\n", strlen((const char *)cause->info), ntohs(cause->length));
-			for (unsigned long i = 0; i < strlen((const char *)cause->info); i++)
-				SCTP_PRINTF("%02x", cause->info[i]);
-			printf("\n");
 			sctp_send_initiate(stcb->sctp_ep, stcb, (struct sctp_gen_error_cause *)cause, SCTP_SO_NOT_LOCKED);
 			/* Is this the correct place to unlock stcb? */
 			SCTP_TCB_UNLOCK(stcb);
@@ -1637,9 +1619,7 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		if (retval < 0) {
 			/* error in parsing parameters */
 			return (-1);
-		} else if (retval == 2) {
-			printf("Alternative handshake: Assoc should be open now\n");
-		} else {
+		} else if (retval != 2) {
 			/* update our state */
 			SCTPDBG(SCTP_DEBUG_INPUT2, "moving to COOKIE-ECHOED state\n");
 			SCTP_SET_STATE(&stcb->asoc, SCTP_STATE_COOKIE_ECHOED);
@@ -2302,8 +2282,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	so = SCTP_INP_SO(inp);
 #endif
-printf("%s:%d\n", __func__, __LINE__);
-printf("offset=%d\n", offset);
+
 	/*
 	 * find and validate the INIT chunk in the cookie (peer's info) the
 	 * INIT should start after the cookie-echo header struct (chunk
@@ -2317,7 +2296,6 @@ printf("offset=%d\n", offset);
 	init_cp = (struct sctp_init_chunk *)
 	    sctp_m_getptr(m, init_offset, sizeof(struct sctp_init_chunk),
 	    (uint8_t *) & init_buf);
-printf("%s:%d\n", __func__, __LINE__);
 	if (init_cp == NULL) {
 		/* could not pull a INIT chunk in cookie */
 		SCTPDBG(SCTP_DEBUG_INPUT1,
@@ -2328,9 +2306,8 @@ printf("%s:%d\n", __func__, __LINE__);
 		SCTPDBG(SCTP_DEBUG_INPUT1, "HUH? process_cookie_new: could not find INIT chunk!\n");
 		return (NULL);
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	initack_offset = init_offset + SCTP_SIZE32(ntohs(init_cp->ch.chunk_length));
-printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * find and validate the INIT-ACK chunk in the cookie (my info) the
 	 * INIT-ACK follows the INIT chunk
@@ -2346,7 +2323,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	if (initack_cp->ch.chunk_type != SCTP_INITIATION_ACK) {
 		return (NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * NOTE: We can't use the INIT_ACK's chk_length to determine the
 	 * "initack_limit" value.  This is because the chk_length field
@@ -2354,7 +2330,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	 * the INIT and INIT_ACK are tacked onto the cookie...
 	 */
 	initack_limit = offset + cookie_len;
-printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * now that we know the INIT/INIT-ACK are in place, create a new TCB
 	 * and popluate
@@ -2954,7 +2929,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 	}
 	if (*stcb == NULL) {
 		/* Yep, lets check */
-		printf("%s:%d\n", __func__, __LINE__);
 		*stcb = sctp_findassociation_ep_addr(inp_p, to, netp, dst, NULL);
 		if (*stcb == NULL) {
 			/*
@@ -2962,7 +2936,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			 * got back a different ep we have a problem. The
 			 * original findep got back l_inp and now
 			 */
-			 printf("%s:%d\n", __func__, __LINE__);
 			if (l_inp != *inp_p) {
 				SCTP_PRINTF("Bad problem find_ep got a diff inp then special_locate?\n");
 			}
@@ -2974,7 +2947,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 				 * sure that we unlock the tcb if its one of the
 				 * cases where we throw away the incoming packets.
 				 */
-				 printf("%s:%d\n", __func__, __LINE__);
 				*locked_tcb = *stcb;
 
 				/* We must also increment the inp ref count
@@ -2991,7 +2963,6 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			}
 		}
 	}
-printf("%s:%d\n", __func__, __LINE__);
 	cookie_len -= SCTP_SIGNATURE_SIZE;
 	if (*stcb == NULL) {
 		/* this is the "normal" case... get a new TCB */
@@ -3003,7 +2974,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		                                mflowtype, mflowid,
 #endif
 		                                vrf_id, port, 0);
-		printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		/* this is abnormal... cookie-echo on existing TCB */
 		had_a_existing_tcb = 1;
@@ -3027,13 +2997,11 @@ printf("%s:%d\n", __func__, __LINE__);
 		(*netp)->flowid = mflowid;
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * Ok, we built an association so confirm the address we sent the
 	 * INIT-ACK to.
 	 */
 	netl = sctp_findnet(*stcb, to);
-	printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * This code should in theory NOT run but
 	 */
@@ -3053,223 +3021,9 @@ printf("%s:%d\n", __func__, __LINE__);
 			send_int_conf = 1;
 		}
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	sctp_start_net_timers(*stcb);
-printf("call sctp_fill_inp with inp_p=%p\n", (void *)*inp_p);
 	sctp_fill_inp(m, inp_p, iphlen, *stcb, netl, src, dst, sh, had_a_existing_tcb, notification, send_int_conf, vrf_id, port);
-	printf("return from sctp_fill_inp with inp_p=%p\n", (void *)*inp_p);
-#if 0
-	if ((*inp_p)->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-		if (!had_a_existing_tcb ||
-		    (((*inp_p)->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
-			/*
-			 * If we have a NEW cookie or the connect never
-			 * reached the connected state during collision we
-			 * must do the TCP accept thing.
-			 */
-			struct socket *so, *oso;
-			struct sctp_inpcb *inp;
 
-			if (notification == SCTP_NOTIFY_ASSOC_RESTART) {
-				/*
-				 * For a restart we will keep the same
-				 * socket, no need to do anything. I THINK!!
-				 */
-				sctp_ulp_notify(notification, *stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
-				if (send_int_conf) {
-					sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
-					                (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
-				}
-				return (m);
-			}
-			oso = (*inp_p)->sctp_socket;
-#if (defined(__FreeBSD__) && __FreeBSD_version < 700000)
-			/*
-			 * We do this to keep the sockets side happy during
-			 * the sonewcon ONLY.
-			 */
-			NET_LOCK_GIANT();
-#endif
-			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK((*stcb));
-#if defined(__FreeBSD__) && __FreeBSD_version >= 801000
-			CURVNET_SET(oso->so_vnet);
-#endif
-#if defined(__APPLE__)
-			SCTP_SOCKET_LOCK(oso, 1);
-#endif
-			so = sonewconn(oso, 0
-#if defined(__APPLE__)
-			    ,NULL
-#endif
-#ifdef __Panda__
-			     ,NULL , (*inp_p)->def_vrf_id
-#endif
-			    );
-#if (defined(__FreeBSD__) && __FreeBSD_version < 700000)
-			NET_UNLOCK_GIANT();
-#endif
-#if defined(__APPLE__)
-			SCTP_SOCKET_UNLOCK(oso, 1);
-#endif
-#if defined(__FreeBSD__) && __FreeBSD_version >= 801000
-			CURVNET_RESTORE();
-#endif
-			SCTP_TCB_LOCK((*stcb));
-			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
-
-			if (so == NULL) {
-				struct mbuf *op_err;
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				struct socket *pcb_so;
-#endif
-				/* Too many sockets */
-				SCTPDBG(SCTP_DEBUG_INPUT1, "process_cookie_new: no room for another socket!\n");
-				op_err = sctp_generate_cause(SCTP_CAUSE_OUT_OF_RESC, "");
-				sctp_abort_association(*inp_p, NULL, m, iphlen,
-						       src, dst, sh, op_err,
-#if defined(__FreeBSD__)
-				                       mflowtype, mflowid,
-#endif
-				                       vrf_id, port);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				pcb_so = SCTP_INP_SO(*inp_p);
-				atomic_add_int(&(*stcb)->asoc.refcnt, 1);
-				SCTP_TCB_UNLOCK((*stcb));
-				SCTP_SOCKET_LOCK(pcb_so, 1);
-				SCTP_TCB_LOCK((*stcb));
-				atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
-#endif
-				(void)sctp_free_assoc(*inp_p, *stcb, SCTP_NORMAL_PROC,
-				                      SCTP_FROM_SCTP_INPUT + SCTP_LOC_24);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				SCTP_SOCKET_UNLOCK(pcb_so, 1);
-#endif
-				return (NULL);
-			}
-			inp = (struct sctp_inpcb *)so->so_pcb;
-			SCTP_INP_INCR_REF(inp);
-			/*
-			 * We add the unbound flag here so that
-			 * if we get an soabort() before we get the
-			 * move_pcb done, we will properly cleanup.
-			 */
-			inp->sctp_flags = (SCTP_PCB_FLAGS_TCPTYPE |
-			    SCTP_PCB_FLAGS_CONNECTED |
-			    SCTP_PCB_FLAGS_IN_TCPPOOL |
-			    SCTP_PCB_FLAGS_UNBOUND |
-			    (SCTP_PCB_COPY_FLAGS & (*inp_p)->sctp_flags) |
-			    SCTP_PCB_FLAGS_DONT_WAKE);
-			inp->sctp_features = (*inp_p)->sctp_features;
-			inp->sctp_mobility_features = (*inp_p)->sctp_mobility_features;
-			inp->sctp_socket = so;
-			inp->sctp_frag_point = (*inp_p)->sctp_frag_point;
-			inp->max_cwnd = (*inp_p)->max_cwnd;
-			inp->sctp_cmt_on_off = (*inp_p)->sctp_cmt_on_off;
-			inp->ecn_supported = (*inp_p)->ecn_supported;
-			inp->prsctp_supported = (*inp_p)->prsctp_supported;
-			inp->auth_supported = (*inp_p)->auth_supported;
-			inp->asconf_supported = (*inp_p)->asconf_supported;
-			inp->reconfig_supported = (*inp_p)->reconfig_supported;
-			inp->nrsack_supported = (*inp_p)->nrsack_supported;
-			inp->pktdrop_supported = (*inp_p)->pktdrop_supported;
-			inp->partial_delivery_point = (*inp_p)->partial_delivery_point;
-			inp->sctp_context = (*inp_p)->sctp_context;
-			inp->local_strreset_support = (*inp_p)->local_strreset_support;
-			inp->fibnum = (*inp_p)->fibnum;
-			inp->inp_starting_point_for_iterator = NULL;
-#if defined(__Userspace__)
-			inp->ulp_info = (*inp_p)->ulp_info;
-			inp->recv_callback = (*inp_p)->recv_callback;
-			inp->send_callback = (*inp_p)->send_callback;
-			inp->send_sb_threshold = (*inp_p)->send_sb_threshold;
-#endif
-			/*
-			 * copy in the authentication parameters from the
-			 * original endpoint
-			 */
-			if (inp->sctp_ep.local_hmacs)
-				sctp_free_hmaclist(inp->sctp_ep.local_hmacs);
-			inp->sctp_ep.local_hmacs =
-			    sctp_copy_hmaclist((*inp_p)->sctp_ep.local_hmacs);
-			if (inp->sctp_ep.local_auth_chunks)
-				sctp_free_chunklist(inp->sctp_ep.local_auth_chunks);
-			inp->sctp_ep.local_auth_chunks =
-			    sctp_copy_chunklist((*inp_p)->sctp_ep.local_auth_chunks);
-
-			/*
-			 * Now we must move it from one hash table to
-			 * another and get the tcb in the right place.
-			 */
-
-			/* This is where the one-2-one socket is put into
-			 * the accept state waiting for the accept!
-			 */
-			if (*stcb) {
-				(*stcb)->asoc.state |= SCTP_STATE_IN_ACCEPT_QUEUE;
-			}
-			sctp_move_pcb_and_assoc(*inp_p, inp, *stcb);
-
-			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK((*stcb));
-
-#if defined(__FreeBSD__)
-			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb,
-			    0);
-#else
-			sctp_pull_off_control_to_new_inp((*inp_p), inp, *stcb, M_NOWAIT);
-#endif
-			SCTP_TCB_LOCK((*stcb));
-			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
-
-
-			/* now we must check to see if we were aborted while
-			 * the move was going on and the lock/unlock happened.
-			 */
-			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
-				/* yep it was, we leave the
-				 * assoc attached to the socket since
-				 * the sctp_inpcb_free() call will send
-				 * an abort for us.
-				 */
-				SCTP_INP_DECR_REF(inp);
-				(*stcb)->info = 0x00000001;
-				return (NULL);
-			}
-			SCTP_INP_DECR_REF(inp);
-			/* Switch over to the new guy */
-			*inp_p = inp;
-			sctp_ulp_notify(notification, *stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
-			if (send_int_conf) {
-				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
-				                (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
-			}
-
-			/* Pull it from the incomplete queue and wake the guy */
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			atomic_add_int(&(*stcb)->asoc.refcnt, 1);
-			SCTP_TCB_UNLOCK((*stcb));
-			SCTP_SOCKET_LOCK(so, 1);
-#endif
-			soisconnected(so);
-#if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-			SCTP_TCB_LOCK((*stcb));
-			atomic_subtract_int(&(*stcb)->asoc.refcnt, 1);
-			SCTP_SOCKET_UNLOCK(so, 1);
-#endif
-			(*stcb)->info = 0x00000002;
-			return (m);
-		}
-	}
-
-	if (notification) {
-		sctp_ulp_notify(notification, *stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
-	}
-	if (send_int_conf) {
-		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
-		                (*stcb), 0, (void *)netl, SCTP_SO_NOT_LOCKED);
-	}
-#endif
 	return (m);
 }
 
@@ -3281,10 +3035,8 @@ sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
 {
 
 	if ((*inp)->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) {
-	printf("%s:%d\n", __func__, __LINE__);
 		if (!had_a_existing_tcb ||
 		    (((*inp)->sctp_flags & SCTP_PCB_FLAGS_CONNECTED) == 0)) {
-		    printf("%s:%d\n", __func__, __LINE__);
 			/*
 			 * If we have a NEW cookie or the connect never
 			 * reached the connected state during collision we
@@ -3305,7 +3057,6 @@ sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
 				}
 				return;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
 			oso = (*inp)->sctp_socket;
 #if (defined(__FreeBSD__) && __FreeBSD_version < 700000)
 			/*
@@ -3322,7 +3073,6 @@ sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
 #if defined(__APPLE__)
 			SCTP_SOCKET_LOCK(oso, 1);
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 			so = sonewconn(oso, 0
 #if defined(__APPLE__)
 			    ,NULL
@@ -3373,7 +3123,6 @@ printf("%s:%d\n", __func__, __LINE__);
 				m = NULL;
 				return;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
 			inp_n = (struct sctp_inpcb *)so->so_pcb;
 			SCTP_INP_INCR_REF(inp_n);
 			/*
@@ -3415,7 +3164,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			 * copy in the authentication parameters from the
 			 * original endpoint
 			 */
-			 printf("new inp=%p\n", (void *)inp_n);
 			if (inp_n->sctp_ep.local_hmacs)
 				sctp_free_hmaclist(inp_n->sctp_ep.local_hmacs);
 			inp_n->sctp_ep.local_hmacs =
@@ -3448,7 +3196,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 
-printf("old inp=%p, new inp=%p\n", (void *)(*inp), (void *)inp_n);
 			/* now we must check to see if we were aborted while
 			 * the move was going on and the lock/unlock happened.
 			 */
@@ -3466,15 +3213,12 @@ printf("old inp=%p, new inp=%p\n", (void *)(*inp), (void *)inp_n);
 			/* Switch over to the new guy */
 			(*inp) = inp_n;
 			if (notification) {
-			printf("send sctp_ulp_notify %d\n", __LINE__);
 				sctp_ulp_notify(notification, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 			}
 			if (send_int_conf) {
-			printf("send sctp_ulp_notify %d\n", __LINE__);
 				sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 				                stcb, 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 			}
-printf("inp now %p\n", (void *)(*inp));
 			/* Pull it from the incomplete queue and wake the guy */
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			atomic_add_int(&stcb->asoc.refcnt, 1);
@@ -3482,22 +3226,18 @@ printf("inp now %p\n", (void *)(*inp));
 			SCTP_SOCKET_LOCK(so, 1);
 #endif
 			soisconnected(so);
-			printf("Socket %p is connected\n", (void *)so);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
 			SCTP_TCB_LOCK(stcb);
 			atomic_subtract_int(&stcb->asoc.refcnt, 1);
 			SCTP_SOCKET_UNLOCK(so, 1);
 #endif
-printf("return with inp=%p inp_n=%p stcb=%p\n", (void *)(*inp), (void *)inp_n, (void *)stcb);
 			return;
 		}
 	}
 	if (notification) {
-	printf("send sctp_ulp_notify %d\n", __LINE__);
 		sctp_ulp_notify(notification, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
 	}
 	if (send_int_conf) {
-	printf("send sctp_ulp_notify %d\n", __LINE__);
 		sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 		                stcb, 0, (void *)netl, SCTP_SO_NOT_LOCKED);
 	}
@@ -5788,16 +5528,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				} else {
 					ret_buf = NULL;
 				}
-				if (stcb == locked_tcb) {
-					if (stcb != NULL)
-						stcb->info |= 0x00000010;
-				} else if (locked_tcb == NULL) {
-					if (stcb != NULL)
-						stcb->info |= 0x00000020;
-				} else {
-					if (stcb != NULL)
-						stcb->info |= 0x00000040;
-				}
 				if (linp) {
 					SCTP_ASOC_CREATE_UNLOCK(linp);
 				}
@@ -5808,8 +5538,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 					SCTPDBG(SCTP_DEBUG_INPUT3,
 						"GAK, null buffer\n");
 					*offset = length;
-					if (stcb != NULL)
-						stcb->info |= 0x00000100;
 					return (NULL);
 				}
 				/* if AUTH skipped, see if it verified... */
@@ -6197,26 +5925,12 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
 			*offset = length;
-			if (stcb != NULL)
-				stcb->info |= 0x00000200;
 			return (NULL);
 		}
 	}			/* while */
 
 	if (asconf_cnt > 0 && stcb != NULL) {
 		sctp_send_asconf_ack(stcb);
-	}
-	if (stcb != NULL)
-		stcb->info |= 0x00000400;
-	if (stcb == locked_tcb) {
-		if (stcb != NULL)
-			stcb->info |= 0x00001000;
-	} else if (locked_tcb != NULL) {
-		if (stcb != NULL)
-			stcb->info |= 0x00002000;
-	} else {
-		if (stcb != NULL)
-			stcb->info |= 0x00004000;
 	}
 	return (stcb);
 }
@@ -6247,7 +5961,7 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 	struct sctp_inpcb *inp = NULL, *inp_decr = NULL;
 	struct sctp_tcb *stcb = NULL;
 	struct sctp_nets *net = NULL;
-printf("%s:%d\n", __func__, __LINE__);
+
 	SCTP_STAT_INCR(sctps_recvdatagrams);
 #ifdef SCTP_AUDITING_ENABLED
 	sctp_audit_log(0xE0, 1);
@@ -6301,16 +6015,13 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 	/* Destination port of 0 is illegal, based on RFC4960. */
 	if (sh->dest_port == 0) {
 		SCTP_STAT_INCR(sctps_hdrops);
 		goto out;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	stcb = sctp_findassociation_addr(m, offset, src, dst,
 	                                 sh, ch, &inp, &net, vrf_id);
-	printf("%s:%d\n", __func__, __LINE__);
 #if defined(INET) || defined(INET6)
 	if ((ch->chunk_type != SCTP_INITIATION) &&
 	    (net != NULL) && (net->port != port)) {
@@ -6328,14 +6039,12 @@ printf("%s:%d\n", __func__, __LINE__);
 		net->port = port;
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 #if defined(__FreeBSD__)
 	if (net != NULL) {
 		net->flowtype = mflowtype;
 		net->flowid = mflowid;
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 	if (inp == NULL) {
 		SCTP_STAT_INCR(sctps_noport);
 #if defined(__FreeBSD__) && (((__FreeBSD_version < 900000) && (__FreeBSD_version >= 804000)) || (__FreeBSD_version > 900000))
@@ -6343,7 +6052,6 @@ printf("%s:%d\n", __func__, __LINE__);
 			goto out;
 		}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 		if (ch->chunk_type == SCTP_SHUTDOWN_ACK) {
 			sctp_send_shutdown_complete2(src, dst, sh,
 #if defined(__FreeBSD__)
@@ -6635,20 +6343,6 @@ trigger_send:
 		SCTP_INP_DECR_REF(inp_decr);
 		SCTP_INP_WUNLOCK(inp_decr);
 	}
-
-	/* go through all our PCB's */
-	SCTP_INP_INFO_RLOCK();
-	LIST_FOREACH(inp, &SCTP_BASE_INFO(listhead), sctp_list) {
-		/* process for all associations for this endpoint */
-		SCTP_INP_RLOCK(inp);
-		LIST_FOREACH(stcb, &inp->sctp_asoc_list, sctp_tcblist) {
-			KASSERT(pthread_mutex_trylock(&stcb->tcb_mtx) == 0, ("%s: tcb_mtx still locked at %s:%d with info: 0x%x", __func__, stcb->filename, stcb->line, stcb->info));
-			KASSERT(pthread_mutex_unlock(&stcb->tcb_mtx) == 0, ("%s: tcb_mtx not locked", __func__));
-		}
-		SCTP_INP_RUNLOCK(inp);
-	}
-	SCTP_INP_INFO_RUNLOCK();
-
 	return;
 }
 

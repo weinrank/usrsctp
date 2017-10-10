@@ -3937,7 +3937,6 @@ sctp_add_cookie(struct mbuf *init, int init_offset,
 	uint8_t *foo;
 	int sig_offset;
 	uint16_t cookie_sz;
-printf("add_cookie init_offset=%d initack_offset=%d\n", init_offset, initack_offset);
 	mret = sctp_get_mbuf_for_msg((sizeof(struct sctp_state_cookie) +
 				      sizeof(struct sctp_paramhdr)), 0,
 				     M_NOWAIT, 1, MT_DATA);
@@ -3976,7 +3975,6 @@ printf("add_cookie init_offset=%d initack_offset=%d\n", init_offset, initack_off
 	ph->param_length = 0;	/* fill in at the end */
 	/* Fill in the stc cookie data */
 	memcpy(stc, stc_in, sizeof(struct sctp_state_cookie));
-printf("length of cookie without chunks: %lu\n", sizeof(struct sctp_state_cookie));
 	/* tack the INIT and then the INIT-ACK onto the chain */
 	cookie_sz = 0;
 	for (m_at = mret; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
@@ -3986,7 +3984,6 @@ printf("length of cookie without chunks: %lu\n", sizeof(struct sctp_state_cookie
 			break;
 		}
 	}
-	printf("vor init cookie_sz=%d\n", cookie_sz);
 	for (m_at = copy_init; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		cookie_sz += SCTP_BUF_LEN(m_at);
 		if (SCTP_BUF_NEXT(m_at) == NULL) {
@@ -3994,14 +3991,12 @@ printf("length of cookie without chunks: %lu\n", sizeof(struct sctp_state_cookie
 			break;
 		}
 	}
-	printf("vor initack cookie_sz=%d\n", cookie_sz);
 	for (m_at = copy_initack; m_at; m_at = SCTP_BUF_NEXT(m_at)) {
 		cookie_sz += SCTP_BUF_LEN(m_at);
 		if (SCTP_BUF_NEXT(m_at) == NULL) {
 			break;
 		}
 	}
-	printf("nach initack cookie_sz=%d\n", cookie_sz);
 	if (signature != NULL) {
 		sig = sctp_get_mbuf_for_msg(SCTP_SECRET_SIZE, 0, M_NOWAIT, 1, MT_DATA);
 		if (sig == NULL) {
@@ -5142,25 +5137,20 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_ge
 		chunk_len += parameter_len;
 	}
 
-printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
 		if (cookie != NULL) {
 			int i;
-			printf("Cookie was sent\n");
-			//parameter_len += strlen(cookie);
 			parameter_len += ntohs(cookie->length) - 4;
 			struct sctp_alt_cookie_param *acp;
 			acp = (struct sctp_alt_cookie_param *)(mtod(m, caddr_t) + chunk_len);
 			acp->ph.param_type = htons(SCTP_ALT_COOKIE);
 			acp->ph.param_length = htons(parameter_len);
-			printf("acp->param_length=%d cookie=%d\n", ntohs(acp->ph.param_length), ntohs(cookie->length) - 4);
 			for (i = 0; i < ntohs(cookie->length) - 4; i++) {
 				acp->cookie[i] = (uint8_t)cookie->info[i];
 			}
 			chunk_len += parameter_len;
 			padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
-			printf("parameter_len=%d padding_len=%d\n", parameter_len, padding_len);
 			if (padding_len > 0) {
 				memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
 				chunk_len += padding_len;
@@ -5169,8 +5159,6 @@ printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake
 		} else {
 			ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
 			ph->param_type = htons(SCTP_ALT_COOKIE);
-						printf("set parameter type: SCTP_ALT_COOKIE =%d, htons=%d\n", SCTP_ALT_COOKIE, htons(SCTP_ALT_COOKIE));
-			printf("param_type=%d\n", ph->param_type);
 			ph->param_length = htons(parameter_len);
 			chunk_len += parameter_len;
 		}
@@ -5597,21 +5585,16 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		}
 		case SCTP_ALT_COOKIE:
 		{
-			printf("Parameter type: SCTP_ALT_COOKIE\n");
 			if (plen == sizeof(struct sctp_paramhdr)) {
 				/* Empty ALT_COOKIE -> send ABORT with Cookie */
-				printf("empty cookie\n");
 				*abort_processing = 2;
 				at += padded_size;
 			} else {
 				struct sctp_alt_cookie_param *acp, *new;
 				int i;
 				acp = (struct sctp_alt_cookie_param *)sctp_get_next_param(mat, at, &params, sizeof(params));
-				printf("acp->type=%d acp->length=%d\n", ntohs(acp->ph.param_type), ntohs(acp->ph.param_length));
 				*abort_processing = 0;
-				printf("parameter length: %d\n", plen);
 				if (op_err == NULL) {
-				printf("op_err noch NULL\n");
 					op_err = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_cookie_param), 0, M_NOWAIT, 1, MT_DATA);
 					new = mtod(op_err, struct sctp_alt_cookie_param *);
 					new->ph.param_type = acp->ph.param_type;
@@ -5621,7 +5604,6 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					}
 					SCTP_BUF_LEN(op_err) = acp->ph.param_length;
 				}
-				printf("return op_err\n");
 				return (op_err);
 			}
 			break;
@@ -5973,11 +5955,9 @@ sctp_create_alternative_cookie(struct sctp_inpcb *inp, struct sockaddr *addr)
 	unsigned char temp[1024];
 	unsigned char *p = (unsigned char *)&((struct sockaddr_in *)addr)->sin_addr;
 	snprintf(msg, sizeof(msg), "%u.%u.%u.%u", p[0], p[1], p[2], p[3]);
-	printf("Remote address: %s\n", msg);
 	len = sctp_hmac(SCTP_HMAC,
 			(uint8_t *)inp->sctp_ep.secret_key[(int)(inp->sctp_ep.current_secret_number)],
 			  SCTP_SECRET_SIZE, (uint8_t *)msg, strlen(msg), temp);
-	printf("cookie length = %d\n", len);
 	char *cookie = calloc(1, len);
 	for (i = 0; i < len; i++) {
 		cookie[i] = temp[i];
@@ -6048,8 +6028,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	} else {
 		asoc = NULL;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
-	printf("stcb=%p\n", (void *)(*stcb));
 	if ((asoc != NULL) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT)) {
 		if (sctp_are_there_new_addresses(asoc, init_pkt, offset, src)) {
@@ -6092,18 +6070,11 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	op_err = sctp_arethere_unrecognized_parameters(init_pkt,
 						       (offset + sizeof(struct sctp_init_chunk)),
 						       &abort_flag, (struct sctp_chunkhdr *)init_chk, &nat_friendly);
-	printf("%s:%d\n", __func__, __LINE__);
 	if (abort_flag) {
-	printf("%s:%d\n", __func__, __LINE__);
 	do_a_abort:
 		if (abort_flag == 2) {
 			char *cookie = NULL;
-			printf("abort_flag = 2\n");
 			cookie = sctp_create_alternative_cookie((*inp), dst);
-			printf("Send cookie: ");
-			for (unsigned long i = 0; i < strlen((const char *)cookie); i++)
-				SCTP_PRINTF("%02x", cookie[i]);
-			printf("\n");
 			op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, (char *)cookie);
 		} else {
 			if (op_err == NULL) {
@@ -6122,24 +6093,21 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		                vrf_id, port);
 		return;
 	} else if (op_err) {
-	printf("%s:%d\n", __func__, __LINE__);
 		struct sctp_paramhdr *phr = mtod(op_err, struct sctp_paramhdr *);
-		printf("do not abort, as op_err is present\n");
 		if (ntohs(phr->param_type) == SCTP_ALT_COOKIE) {
 			char *calc_cookie = NULL;
 			struct sctp_alt_cookie_param *acp;
 			calc_cookie = sctp_create_alternative_cookie((*inp), dst);
 			acp = (struct sctp_alt_cookie_param *)(mtod(op_err, struct sctp_alt_cookie_param *));
 			cookie_accepted = 1;
-			printf("length of tested cookie: %lu\n", ntohs(phr->param_length)-sizeof(struct sctp_paramhdr));
 			if (memcmp(acp->cookie, calc_cookie, ntohs(phr->param_length)-sizeof(struct sctp_paramhdr)) != 0) {
-				printf("Cookies are not the same\n");
+				SCTPDBG(SCTP_DEBUG_OUTPUT2,
+		"sctp_send_initiate_ack: Alternative cookies are not the same\n");
 				cookie_accepted = 0;
 				op_err = NULL;
 			}
 			if (cookie_accepted == 1) {
 				op_err = NULL;
-				printf("cookie was accepted\n");
 			}
 		}
 	}
@@ -6152,7 +6120,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	}
 	chunk_len = (uint16_t)sizeof(struct sctp_init_ack_chunk);
 	padding_len = 0;
-printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * We might not overwrite the identification[] completely and on
 	 * some platforms time_entered will contain some padding.
@@ -6181,7 +6148,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* copy in the ports for later check */
 	stc.myport = sh->dest_port;
 	stc.peerport = sh->src_port;
-printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * If we wanted to honor cookie life extensions, we would add to
 	 * stc.cookie_life. For now we should NOT honor any extension
@@ -6519,9 +6485,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	initack->init.num_inbound_streams =
 		htons((*inp)->sctp_ep.max_open_streams_intome);
 
-printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake));
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
-	printf("make empty SCTP_ALT_COOKIE\n");
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
 		ph->param_type = htons(SCTP_ALT_COOKIE);
@@ -6611,7 +6575,6 @@ printf("alternative_handshake=%d\n", SCTP_BASE_SYSCTL(sctp_alternative_handshake
 		padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
 	/* add authentication parameters */
 	if (((asoc != NULL) && (asoc->auth_supported == 1)) ||
 	    ((asoc == NULL) && ((*inp)->auth_supported == 1))) {
@@ -6685,7 +6648,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	m_last = sctp_add_addresses_to_i_ia((*inp), (*stcb), &scp, m_last,
 	                                    cnt_inits_to,
 	                                    &padding_len, &chunk_len);
-printf("%s:%d\n", __func__, __LINE__);
 	/* tack on the operational error if present */
 	if (op_err) {
 		/* padding_len can only be positive, if no addresses have been added */
@@ -6706,9 +6668,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		chunk_len += parameter_len;
 	}
-printf("%s:%d\n", __func__, __LINE__);
 	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
-	printf("%s:%d\n", __func__, __LINE__);
 		if (padding_len > 0) {
 			m_last = sctp_add_pad_tombuf(m_last, padding_len);
 			if (m_last == NULL) {
@@ -6719,10 +6679,8 @@ printf("%s:%d\n", __func__, __LINE__);
 			chunk_len += padding_len;
 			padding_len = 0;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
 		/* Now we must build a cookie */
 		m_cookie = sctp_add_cookie(init_pkt, offset, m, 0, &stc, &signature, &c_size);
-		printf("%s:%d\n", __func__, __LINE__);
 		if (m_cookie == NULL) {
 			/* memory problem */
 			sctp_m_freem(m);
@@ -6742,7 +6700,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		/* Now we must build a cookie */
 		m_cookie = sctp_add_cookie(init_pkt, offset, m, 0, &stc, NULL, &c_size);
-		printf("nach add cookie: c_size=%d\n", c_size);
 		if (m_cookie == NULL) {
 			/* memory problem */
 			sctp_m_freem(m);
@@ -6785,7 +6742,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		over_addr = NULL;
 	}
-printf("%s:%d\n", __func__, __LINE__);
 	if ((error = sctp_lowlevel_chunk_output((*inp), NULL, NULL, to, m, 0, NULL, 0, 0,
 	                                        0, 0,
 	                                        (*inp)->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
@@ -6807,9 +6763,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-printf("%s:%d\n", __func__, __LINE__);
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
-		printf("Can we populate assoc? stcb=%p\n", (void *)(*stcb));
 		SCTP_INP_INCR_REF((*inp));
 		SCTP_INP_RUNLOCK((*inp));
 		(*stcb) = sctp_process_cookie_new(m_cookie, iphlen, offset, src, dst, sh,
@@ -6820,7 +6774,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		                                mflowtype, mflowid,
 #endif
 		                                vrf_id, port, 1);
-		printf("return from sctp_process_cookie_new: stcb=%p\n", (void *)(*stcb));
 		SCTP_INP_RLOCK((*inp));
 		SCTP_INP_DECR_REF((*inp));
 		if ((*stcb) == NULL) {
@@ -6833,24 +6786,19 @@ printf("%s:%d\n", __func__, __LINE__);
 			net->flowid = mflowid;
 		}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
 		net = sctp_findnet((*stcb), to);
-		printf("%s:%d\n", __func__, __LINE__);
 		/*
 	 	* This code should in theory NOT run but
 	 	*/
 		if (net == NULL) {
 			/* TSNH! Huh, why do I need to add this address here? */
-			printf("%s:%d\n", __func__, __LINE__);
 			if (sctp_add_remote_addr((*stcb), to, NULL, port,
 		                         SCTP_DONOT_SETSCOPE, SCTP_IN_COOKIE_PROC)) {
 			return;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
 			net = sctp_findnet((*stcb), to);
 		}
 		if (net) {
-		printf("%s:%d\n", __func__, __LINE__);
 			if (net->dest_state & SCTP_ADDR_UNCONFIRMED) {
 				net->dest_state &= ~SCTP_ADDR_UNCONFIRMED;
 				(void)sctp_set_primary_addr((*stcb), (struct sockaddr *)NULL,
@@ -6858,22 +6806,15 @@ printf("%s:%d\n", __func__, __LINE__);
 				send_int_conf = 1;
 			}
 		}
-		printf("%s:%d\n", __func__, __LINE__);
 		sctp_start_net_timers((*stcb));
-		printf("%s:%d\n", __func__, __LINE__);
-			/*** Test **/
 		temp_inp = (*inp);
 		SCTP_INP_INCR_REF(temp_inp);
 		SCTP_INP_RUNLOCK(temp_inp);
-	/*****/
-		printf("fill inp %p\n", (void *)(*inp));
+
 		sctp_fill_inp(m, inp, iphlen, (*stcb), net, src, dst, sh, 0, notification, send_int_conf, vrf_id, port);
 		SCTP_INP_RLOCK(temp_inp);
 		SCTP_INP_DECR_REF(temp_inp);
-		printf("after fill inp %p\n", (void *)(*inp));
 	}
-	printf("asoc=%p stcb->asoc=%p\n", (void *)asoc, (void *)&((*stcb)->asoc));
-	//printf("assoc state=%d\n", SCTP_GET_STATE(&(stcb->asoc)));
 }
 
 
