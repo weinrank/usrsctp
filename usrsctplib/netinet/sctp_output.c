@@ -6074,9 +6074,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	if (abort_flag) {
 	do_a_abort:
 		if (abort_flag == 2) {
-		printf("abort_flag=2\n");
 			if (sctp_is_feature_on((*inp), SCTP_PCB_FLAGS_EMPTYALTCOOKIE)) {
-			printf("feature is on\n");
 				cookie_accepted = 1;
 			} else {
 				char *cookie = NULL;
