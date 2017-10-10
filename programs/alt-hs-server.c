@@ -110,11 +110,20 @@ main(int argc, char *argv[])
 	addr.sin_port 			= htons(PORT);
 	addr.sin_addr.s_addr 	= htonl(INADDR_ANY);
 
+	if (argc > 1) {
+		if (inet_pton(AF_INET, argv[1], &addr.sin_addr) != 1) {
+			perror("inet_pton");
+			exit(EXIT_FAILURE);
+		}
+	}
+
 	if (usrsctp_bind(sock, (struct sockaddr *)&addr, sizeof(struct sockaddr_in)) < 0) {
 		perror("usrsctp_bind");
+		exit(EXIT_FAILURE);
 	}
 	if (usrsctp_listen(sock, 1) < 0) {
 		perror("usrsctp_listen");
+		exit(EXIT_FAILURE);
 	}
 
 	memset(&sndinfo, 0, sizeof(sndinfo));
@@ -128,12 +137,11 @@ main(int argc, char *argv[])
 		from_len = (socklen_t)sizeof(struct sockaddr_in6);
 		flags = 0;
 		infolen = (socklen_t)sizeof(struct sctp_rcvinfo);
-		n = usrsctp_recvv(conn_sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info,
-						  &infolen, &infotype, &flags);
+		n = usrsctp_recvv(conn_sock, (void*)buffer, BUFFER_SIZE, (struct sockaddr *) &addr, &from_len, (void *)&rcv_info, &infolen, &infotype, &flags);
 		if (n > 0) {
-			if (usrsctp_sendv(conn_sock, response, strlen(response), NULL, 0, (void *)&sndinfo,
-							  (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
+			if (usrsctp_sendv(conn_sock, response, strlen(response), NULL, 0, (void *)&sndinfo, (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0) < 0) {
 				perror("usrsctp_sendv");
+				exit(EXIT_FAILURE);
 			}
 		}
 

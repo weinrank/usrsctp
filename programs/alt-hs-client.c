@@ -118,6 +118,23 @@ main(int argc, char *argv[])
 			goto out;
 		}
 
+		if (argc > 2) {
+			memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
+#ifdef HAVE_SIN_LEN
+			addr4.sin_len 			= sizeof(struct sockaddr_in);
+#endif
+			addr4.sin_family 		= AF_INET;
+			addr4.sin_port 			= htons(0);
+			if (inet_pton(AF_INET, argv[2], &addr4.sin_addr) != 1) {
+				perror("inet_pton");
+				goto out;
+			}
+			if (usrsctp_bind(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
+				perror("bind");
+				goto out;
+			}
+		}
+
 		memset(&encaps, 0, sizeof(struct sctp_udpencaps));
 		encaps.sue_address.ss_family = AF_INET6;
 		encaps.sue_port = htons(9899);
@@ -129,7 +146,6 @@ main(int argc, char *argv[])
 		}
 
 		memset((void *)&addr4, 0, sizeof(struct sockaddr_in));
-
 	#ifdef HAVE_SIN_LEN
 		addr4.sin_len = sizeof(struct sockaddr_in);
 	#endif
