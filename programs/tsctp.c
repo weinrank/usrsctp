@@ -321,6 +321,7 @@ server_receive_cb(struct socket *sock, union sctp_sockstore addr, void *data,
 	}
 	sum += datalen;
 	messages++;
+	printf("Message #%lu adds up to %llu bytes\n", messages, sum);
 
 	free(data);
 	return (1);
@@ -588,6 +589,8 @@ int main(int argc, char **argv)
 #endif
 	usrsctp_sysctl_set_sctp_blackhole(2);
 	usrsctp_sysctl_set_sctp_enable_sack_immediately(1);
+	printf("set sctp_alternative_handshake\n");
+	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 	if (client) {
 		if (use_cb) {

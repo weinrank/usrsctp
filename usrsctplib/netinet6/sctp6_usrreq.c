@@ -1290,7 +1290,7 @@ sctp6_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
 	return (error);
 }

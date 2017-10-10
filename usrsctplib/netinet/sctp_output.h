@@ -76,14 +76,14 @@ int
 sctp_v4src_match_nexthop(struct sctp_ifa *sifa, sctp_route_t *ro);
 #endif
 
-void sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, int
+void sctp_send_initiate(struct sctp_inpcb *, struct sctp_tcb *, struct sctp_gen_error_cause *cookie, int
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
     );
 
 void
-sctp_send_initiate_ack(struct sctp_inpcb *, struct sctp_tcb *,
+sctp_send_initiate_ack(struct sctp_inpcb **, struct sctp_tcb **,
                        struct sctp_nets *, struct mbuf *,
                        int, int,
                        struct sockaddr *, struct sockaddr *,

@@ -2091,7 +2091,7 @@ sctp_do_connect_x(struct socket *so, struct sctp_inpcb *inp, void *optval,
 		sctp_timer_start(SCTP_TIMER_TYPE_INIT, inp, stcb, stcb->asoc.primary_destination);
 	} else {
 		(void)SCTP_GETTIME_TIMEVAL(&stcb->asoc.time_entered);
-		sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+		sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	}
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
@@ -5687,7 +5687,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, inp, stcb,
 					stcb->asoc.primary_destination,
 					SCTP_FROM_SCTP_USRREQ + SCTP_LOC_8);
-			sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+			sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 		} else {
 			/*
 			 * already expired or did not use delayed
@@ -7946,7 +7946,7 @@ sctp_connect(struct socket *so, struct mbuf *nam, struct proc *p)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
 	if (create_lock_on) {
@@ -8113,7 +8113,7 @@ sctpconn_connect(struct socket *so, struct sockaddr *addr)
 	/* initialize authentication parameters for the assoc */
 	sctp_initialize_auth_params(inp, stcb);
 
-	sctp_send_initiate(inp, stcb, SCTP_SO_LOCKED);
+	sctp_send_initiate(inp, stcb, NULL, SCTP_SO_LOCKED);
 	SCTP_TCB_UNLOCK(stcb);
  out_now:
 	if (create_lock_on) {

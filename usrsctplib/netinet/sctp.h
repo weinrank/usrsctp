@@ -389,6 +389,8 @@ struct sctp_paramhdr {
 /* Error causes from RFC4895 */
 #define SCTP_CAUSE_UNSUPPORTED_HMACID	0x0105
 
+#define SCTP_ALT_COOKIE_REQUIRED		0x1207
+
 /*
  * error cause parameters (user visible)
  */
