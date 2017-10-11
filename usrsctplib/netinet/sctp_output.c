@@ -5148,7 +5148,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 			if (!(TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist)))) {
 				cookie_info = find_cookie(&net->ro._l_addr, stcb->rport);
 				if (cookie_info != NULL) {
-					cookie = (struct sctp_alt_cookie_param *)calloc(1, sizeof(struct sctp_alt_cookie_param));
+					cookie = (struct sctp_alt_cookie_param *)calloc(1, sizeof(struct sctp_alt_cookie_param) + cookie_info->cookie_len);
 					printf("cookie gefunden mit Port %d und len %d\n", ntohs(cookie_info->dst_port), cookie_info->cookie_len);
 					cookie->ph.param_length = htons(cookie_info->cookie_len + 4);
 					for (i = 0; i < cookie_info->cookie_len; i++) {
