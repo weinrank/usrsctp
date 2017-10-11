@@ -6597,6 +6597,9 @@ sctp_pcb_init()
 	}
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 1;
 
+	/* init the empty list of the alternative cookies */
+	TAILQ_INIT(&SCTP_BASE_INFO(cookielist));
+
 #if defined(SCTP_PROCESS_LEVEL_LOCKS)
 #if !defined(__Userspace_os_Windows)
 	pthread_mutexattr_init(&SCTP_BASE_VAR(mtx_attr));
@@ -6817,7 +6820,8 @@ sctp_pcb_finish(void)
 	struct sctp_laddr *wi, *nwi;
 	int i;
 	struct sctp_iterator *it, *nit;
-
+//	struct sctp_alt_cookie_info *cookie, *ncookie;
+printf("%s:%d\n", __func__, __LINE__);
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 		SCTP_PRINTF("%s: race condition on teardown.\n", __func__);
 		return;
@@ -6830,19 +6834,23 @@ sctp_pcb_finish(void)
 	sctp_wakeup_iterator();
 	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 #if defined(__APPLE__)
 #if !defined(APPLE_LEOPARD) && !defined(APPLE_SNOWLEOPARD) && !defined(APPLE_LION) && !defined(APPLE_MOUNTAINLION)
 	in_pcbinfo_detach(&SCTP_BASE_INFO(sctbinfo));
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 	SCTP_IPI_ITERATOR_WQ_LOCK();
 	do {
 		msleep(&sctp_it_ctl.iterator_flags,
 		       sctp_it_ctl.ipi_iterator_wq_mtx,
 		       0, "waiting_for_work", 0);
 	} while ((sctp_it_ctl.iterator_flags & SCTP_ITERATOR_EXITED) == 0);
+printf("%s:%d\n", __func__, __LINE__);
 	thread_deallocate(sctp_it_ctl.thread_proc);
 	SCTP_IPI_ITERATOR_WQ_UNLOCK();
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 #if defined(__Windows__)
 	if (sctp_it_ctl.iterator_thread_obj != NULL) {
 		NTSTATUS status = STATUS_SUCCESS;
@@ -6856,8 +6864,10 @@ sctp_pcb_finish(void)
 		ObDereferenceObject(sctp_it_ctl.iterator_thread_obj);
 	}
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 #if defined(__Userspace__)
 	if (sctp_it_ctl.thread_proc) {
+	printf("%s:%d\n", __func__, __LINE__);
 #if defined(__Userspace_os_Windows)
 		WaitForSingleObject(sctp_it_ctl.thread_proc, INFINITE);
 		CloseHandle(sctp_it_ctl.thread_proc);
@@ -6865,6 +6875,7 @@ sctp_pcb_finish(void)
 #else
 		pthread_join(sctp_it_ctl.thread_proc, NULL);
 		sctp_it_ctl.thread_proc = 0;
+		printf("%s:%d\n", __func__, __LINE__);
 #endif
 	}
 #endif
@@ -6876,6 +6887,7 @@ sctp_pcb_finish(void)
 	pthread_mutexattr_destroy(&SCTP_BASE_VAR(mtx_attr));
 #endif
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 	/* In FreeBSD the iterator thread never exits
 	 * but we do clean up.
 	 * The only way FreeBSD reaches here is if we have VRF's
@@ -6885,6 +6897,7 @@ sctp_pcb_finish(void)
 retry:
 #endif
 	SCTP_IPI_ITERATOR_WQ_LOCK();
+	printf("%s:%d\n", __func__, __LINE__);
 #if defined(__FreeBSD__)
 	/*
 	 * sctp_iterator_worker() might be working on an it entry without
@@ -6901,6 +6914,14 @@ retry:
 		goto retry;
 	}
 #endif
+/*printf("%s:%d\n", __func__, __LINE__);
+	TAILQ_FOREACH_SAFE(cookie, &SCTP_BASE_INFO(cookielist), sctp_next_cookie, ncookie) {
+	printf("%s:%d\n", __func__, __LINE__);
+		TAILQ_REMOVE(&SCTP_BASE_INFO(cookielist), cookie, sctp_next_cookie);
+		printf("%s:%d\n", __func__, __LINE__);
+	}
+	printf("%s:%d\n", __func__, __LINE__);
+*/
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
 #if defined(__FreeBSD__) && __FreeBSD_version >= 801000
 		if (it->vn != curvnet) {

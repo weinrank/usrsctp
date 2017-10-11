@@ -145,6 +145,15 @@ struct sctp_tagblock {
 	struct sctp_timewait vtag_block[SCTP_NUMBER_IN_VTAG_BLOCK];
 };
 
+TAILQ_HEAD(cookielisthead, sctp_alt_cookie_info);
+struct sctp_alt_cookie_info {
+	TAILQ_ENTRY(sctp_alt_cookie_info) sctp_next_cookie;
+	struct sockaddr dst;
+	uint16_t dst_port;
+	uint16_t cookie_len;
+	uint8_t *cookie;
+};
+
 
 struct sctp_epinfo {
 #if defined(__FreeBSD__)
@@ -282,6 +291,7 @@ struct sctp_epinfo {
 #if defined(_SCTP_NEEDS_CALLOUT_) || defined(_USER_SCTP_NEEDS_CALLOUT_)
 	struct calloutlist callqueue;
 #endif
+	struct cookielisthead cookielist;
 };
 
 

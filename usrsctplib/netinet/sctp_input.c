@@ -989,7 +989,11 @@ sctp_handle_abort(struct sctp_abort_chunk *abort,
 			                           abort->ch.chunk_flags);
 			sctp_timer_stop(SCTP_TIMER_TYPE_INIT, stcb->sctp_ep, stcb, net,
 			                SCTP_FROM_SCTP_INPUT + SCTP_LOC_7);
-			sctp_send_initiate(stcb->sctp_ep, stcb, (struct sctp_gen_error_cause *)cause, SCTP_SO_NOT_LOCKED);
+
+			/* Store cookie for future use */
+			insert_cookie((struct sctp_alt_cookie_param *)cause, &(net->ro._l_addr), stcb->rport);
+
+			sctp_send_initiate(stcb->sctp_ep, stcb, (struct sctp_alt_cookie_param *)cause, SCTP_SO_NOT_LOCKED);
 			/* Is this the correct place to unlock stcb? */
 			SCTP_TCB_UNLOCK(stcb);
 			return;

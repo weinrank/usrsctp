@@ -411,6 +411,9 @@ void sctp_log_map(uint32_t, uint32_t, uint32_t, int);
 void sctp_print_mapping_array(struct sctp_association *asoc);
 void sctp_clr_stat_log(void);
 
+struct sctp_alt_cookie_info *find_cookie(union sctp_sockstore *addr, uint16_t port);
+void insert_cookie(struct sctp_alt_cookie_param *new_cookie, union sctp_sockstore *addr, uint16_t port);
+
 
 #ifdef SCTP_AUDITING_ENABLED
 void

@@ -5047,7 +5047,7 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 
 
 void
-sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_gen_error_cause *cookie, int so_locked
+sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_alt_cookie_param *cookie, int so_locked
 #if !defined(__APPLE__) && !defined(SCTP_SO_LOCK_TESTING)
     SCTP_UNUSED
 #endif
@@ -5141,15 +5141,36 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_ge
 
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
+		if (cookie == NULL) {
+			int i;
+			/* Look, if there is already a cookie stored for this path */
+			struct sctp_alt_cookie_info *cookie_info;
+			if (!(TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist)))) {
+				cookie_info = find_cookie(&net->ro._l_addr, stcb->rport);
+				if (cookie_info != NULL) {
+					cookie = (struct sctp_alt_cookie_param *)calloc(1, sizeof(struct sctp_alt_cookie_param));
+					printf("cookie gefunden mit Port %d und len %d\n", ntohs(cookie_info->dst_port), cookie_info->cookie_len);
+					cookie->ph.param_length = htons(cookie_info->cookie_len + 4);
+					for (i = 0; i < cookie_info->cookie_len; i++) {
+						cookie->cookie[i] = cookie_info->cookie[i];
+					}
+				}
+			} else {
+				ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
+				ph->param_type = htons(SCTP_ALT_COOKIE);
+				ph->param_length = htons(parameter_len);
+				chunk_len += parameter_len;
+			}
+		}
 		if (cookie != NULL) {
 			int i;
-			parameter_len += ntohs(cookie->length) - 4;
+			parameter_len += ntohs(cookie->ph.param_length) - 4;
 			struct sctp_alt_cookie_param *acp;
 			acp = (struct sctp_alt_cookie_param *)(mtod(m, caddr_t) + chunk_len);
 			acp->ph.param_type = htons(SCTP_ALT_COOKIE);
 			acp->ph.param_length = htons(parameter_len);
-			for (i = 0; i < ntohs(cookie->length) - 4; i++) {
-				acp->cookie[i] = (uint8_t)cookie->info[i];
+			for (i = 0; i < ntohs(cookie->ph.param_length) - 4; i++) {
+				acp->cookie[i] = (uint8_t)cookie->cookie[i];
 			}
 			chunk_len += parameter_len;
 			padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
@@ -5158,11 +5179,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_ge
 				chunk_len += padding_len;
 				padding_len = 0;
 			}
-		} else {
-			ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
-			ph->param_type = htons(SCTP_ALT_COOKIE);
-			ph->param_length = htons(parameter_len);
-			chunk_len += parameter_len;
 		}
 	}
 
@@ -6074,9 +6090,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	if (abort_flag) {
 	do_a_abort:
 		if (abort_flag == 2) {
-		printf("abort_flag=2\n");
 			if (sctp_is_feature_on((*inp), SCTP_PCB_FLAGS_EMPTYALTCOOKIE)) {
-			printf("feature is on\n");
 				cookie_accepted = 1;
 			} else {
 				char *cookie = NULL;
@@ -6110,10 +6124,21 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 			acp = (struct sctp_alt_cookie_param *)(mtod(op_err, struct sctp_alt_cookie_param *));
 			cookie_accepted = 1;
 			if (memcmp(acp->cookie, calc_cookie, ntohs(phr->param_length)-sizeof(struct sctp_paramhdr)) != 0) {
+			printf("sctp_send_initiate_ack: Alternative cookies are not the same\n");
 				SCTPDBG(SCTP_DEBUG_OUTPUT2,
 		"sctp_send_initiate_ack: Alternative cookies are not the same\n");
 				cookie_accepted = 0;
 				op_err = NULL;
+				char *cookie = NULL;
+				cookie = sctp_create_alternative_cookie((*inp), dst);
+				op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, (char *)cookie);
+				sctp_send_abort(init_pkt, iphlen, src, dst, sh,
+				                init_chk->init.initiate_tag, op_err,
+#if defined(__FreeBSD__)
+				                mflowtype, mflowid, (*inp)->fibnum,
+#endif
+				                vrf_id, port);
+				return;
 			}
 			if (cookie_accepted == 1) {
 				op_err = NULL;
