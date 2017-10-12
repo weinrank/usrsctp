@@ -29,7 +29,7 @@
  */
 
 /*
- * Usage: alt-hs-server
+ * Usage: alt-hs-server [local_addr]
  *
  */
 

@@ -29,10 +29,10 @@
  */
 
 /*
- * Usage: http_client remote_addr remote_port [local_port] [local_encaps_port] [remote_encaps_port] [uri]
+ * Usage: http_client remote_addr [local_addr]
  *
  * Example
- * Client: $ ./http_client 212.201.121.100 80 0 9899 9899 /cgi-bin/he
+ * Client: $ ./alt-hs-client 10.0.1.1 10.2.1.1
  */
 #define BUFFER_SIZE 8096
 
