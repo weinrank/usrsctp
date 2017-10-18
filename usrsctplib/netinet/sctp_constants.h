@@ -366,6 +366,7 @@ extern void getwintimeofday(struct timeval *tv);
 #define SCTP_DATAGRAM_MARKED		20010
 #define SCTP_FORWARD_TSN_SKIP		30010
 #define SCTP_DATAGRAM_NR_ACKED		40010
+#define SCTP_DATAGRAM_INIT_SENT		1010
 
 /* chunk output send from locations */
 #define SCTP_OUTPUT_FROM_USR_SEND       0
@@ -445,6 +446,12 @@ extern void getwintimeofday(struct timeval *tv);
 #define SCTP_SUPPORTED_CHUNK_EXT    0x8008
 
 #define SCTP_ALT_COOKIE			0xb007
+#define SCTP_ALT_DATA			0xb008
+
+#define ABORT_NO_ABORT		0x0001
+#define ABORT_PROCESSING		0x0010
+#define ABORT_COOKIE_REQ		0x0100
+#define ABORT_DATA_SENT			0x1000
 
 /*************0xC000 series*************/
 #define SCTP_PRSCTP_SUPPORTED		0xc000

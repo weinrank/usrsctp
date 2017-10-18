@@ -6597,6 +6597,9 @@ sctp_pcb_init()
 	}
 	SCTP_BASE_VAR(sctp_pcb_initialized) = 1;
 
+	/* init the empty list of the alternative cookies */
+	TAILQ_INIT(&SCTP_BASE_INFO(cookielist));
+
 #if defined(SCTP_PROCESS_LEVEL_LOCKS)
 #if !defined(__Userspace_os_Windows)
 	pthread_mutexattr_init(&SCTP_BASE_VAR(mtx_attr));
@@ -6817,6 +6820,7 @@ sctp_pcb_finish(void)
 	struct sctp_laddr *wi, *nwi;
 	int i;
 	struct sctp_iterator *it, *nit;
+	struct sctp_alt_cookie_info *cookie, *ncookie;
 
 	if (SCTP_BASE_VAR(sctp_pcb_initialized) == 0) {
 		SCTP_PRINTF("%s: race condition on teardown.\n", __func__);
@@ -6901,6 +6905,10 @@ retry:
 		goto retry;
 	}
 #endif
+	TAILQ_FOREACH_SAFE(cookie, &SCTP_BASE_INFO(cookielist), sctp_next_cookie, ncookie) {
+		TAILQ_REMOVE(&SCTP_BASE_INFO(cookielist), cookie, sctp_next_cookie);
+	}
+
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
 #if defined(__FreeBSD__) && __FreeBSD_version >= 801000
 		if (it->vn != curvnet) {

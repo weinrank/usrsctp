@@ -8232,3 +8232,72 @@ sctp_hc_get_mtu(union sctp_sockstore *addr, uint16_t fibnum)
 	return ((uint32_t)tcp_hc_getmtu(&inc));
 }
 #endif
+
+struct sctp_alt_cookie_info *
+find_cookie(union sctp_sockstore *addr, uint16_t port)
+{
+	struct sctp_alt_cookie_info *cookie;
+
+	if (TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist))) {
+		return NULL;
+	}
+	TAILQ_FOREACH(cookie, &SCTP_BASE_INFO(cookielist), sctp_next_cookie) {
+		if (cookie->dst_port != port) {
+			continue;
+		}
+		switch (cookie->dst.sa_family) {
+#ifdef INET
+			case AF_INET:
+				if (memcmp(&cookie->dst, &(addr->sin), sizeof(struct sockaddr_in)) == 0) {
+					return cookie;
+				}
+#endif
+#ifdef INET6
+			case AF_INET6:
+				if (memcmp(&cookie->dst, &(addr->sin6), sizeof(struct sockaddr_in6)) == 0) {
+					return cookie;
+				}
+#endif
+		}
+	}
+	return NULL;
+}
+
+void
+insert_cookie(struct sctp_alt_cookie_param *new_cookie, union sctp_sockstore *addr, uint16_t port)
+{
+	int i;
+
+	if (!(TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist)))) {
+		struct sctp_alt_cookie_info *cookie_info = find_cookie(addr, port);
+		if (cookie_info != NULL) {
+			cookie_info->cookie_len = ntohs(new_cookie->ph.param_length) - sizeof(struct sctp_paramhdr);
+			for (i = 0; i < cookie_info->cookie_len; i++) {
+				cookie_info->cookie[i] = new_cookie->cookie[i];
+			}
+			return;
+		}
+	}
+	struct sctp_alt_cookie_info *cookie_entry = calloc(1, sizeof(struct sctp_alt_cookie_info));
+	switch (addr->sa.sa_family) {
+#ifdef INET
+		case AF_INET:
+			cookie_entry->dst = *(struct sockaddr *) &(addr->sin);
+			break;
+#endif
+#ifdef INET6
+		case AF_INET6:
+			cookie_entry->dst = *(struct sockaddr *) &(addr->sin6);
+			break;
+#endif
+		default:
+			SCTPDBG(SCTP_DEBUG_INPUT2, "Wrong destination address\n");
+	}
+	cookie_entry->dst_port = port;
+	cookie_entry->cookie_len = ntohs(new_cookie->ph.param_length) - sizeof(struct sctp_paramhdr);
+	cookie_entry->cookie = calloc(1, cookie_entry->cookie_len);
+	for (i = 0; i < cookie_entry->cookie_len; i++) {
+		cookie_entry->cookie[i] = new_cookie->cookie[i];
+	}
+	TAILQ_INSERT_TAIL(&SCTP_BASE_INFO(cookielist), cookie_entry, sctp_next_cookie);
+}
