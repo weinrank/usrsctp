@@ -1670,7 +1670,7 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	int ordered;
 	size_t clen;
 	int created_control = 0;
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (chk_type == SCTP_IDATA) {
 		struct sctp_idata_chunk *chunk, chunk_buf;
 
@@ -1701,7 +1701,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		fsn = tsn;
 		ppid = chunk->dp.ppid;
 	}
-	printf("tsn=%u\n", tsn);
+
 	if ((size_t)chk_length == clen) {
 		/*
 		 * Need to send an abort since we had a
@@ -1724,7 +1724,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		return (0);
 	}
 	SCTP_LTRACE_CHK(stcb->sctp_ep, stcb, chk_type, tsn);
-	printf("asoc->cumulative_tsn=%u tsn=%u\n", asoc->cumulative_tsn, tsn);
 	if (SCTP_TSN_GE(asoc->cumulative_tsn, tsn)) {
 		/* It is a duplicate */
 		SCTP_STAT_INCR(sctps_recvdupdata);
@@ -2581,7 +2580,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 		    (stcb->asoc.delayed_ack == 0) ||    /* Delayed sack disabled */
 		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)	/* hit limit of pkts */
 			) {
-printf("%s:%d\n", __func__, __LINE__);
+
 			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 			    (SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) &&
 			    (stcb->asoc.send_sack == 0) &&
@@ -2610,16 +2609,16 @@ printf("%s:%d\n", __func__, __LINE__);
 				 * first packet OR there are gaps or
 				 * duplicates.
 				 */
-				 printf("%s:%d\n", __func__, __LINE__);
+
 				(void)SCTP_OS_TIMER_STOP(&stcb->asoc.dack_timer.timer);
-				printf("%s:%d\n", __func__, __LINE__);
+
 				sctp_send_sack(stcb, SCTP_SO_NOT_LOCKED);
-				printf("%s:%d\n", __func__, __LINE__);
+
 			}
 		} else {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if (!SCTP_OS_TIMER_PENDING(&stcb->asoc.dack_timer.timer)) {
-			printf("%s:%d\n", __func__, __LINE__);
+
 				sctp_timer_start(SCTP_TIMER_TYPE_RECV,
 				                 stcb->sctp_ep, stcb, NULL);
 			}
@@ -2640,10 +2639,10 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	int abort_flag = 0, was_a_gap;
 	struct mbuf *m;
 	uint32_t highest_tsn;
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* set the rwnd */
 	sctp_set_rwnd(stcb, &stcb->asoc);
-printf("%s:%d\n", __func__, __LINE__);
+
 	m = *mm;
 	SCTP_TCB_LOCK_ASSERT(stcb);
 	asoc = &stcb->asoc;
@@ -2659,7 +2658,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	 * chunk is assigned.
 	 */
 	asoc->last_data_chunk_from = net;
-printf("%s:%d\n", __func__, __LINE__);
+
 #ifndef __Panda__
 	/*-
 	 * Now before we proceed we must figure out if this is a wasted
@@ -2669,20 +2668,19 @@ printf("%s:%d\n", __func__, __LINE__);
 	 * with cluster starvation. Note for __Panda__ we don't do this
 	 * since it has clusters all the way down to 64 bytes.
 	 */
-	 printf("SCTP_BUF_LEN(m)=%d\n", SCTP_BUF_LEN(m));
 	if (SCTP_BUF_LEN(m) < (long)MLEN && SCTP_BUF_NEXT(m) == NULL) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* we only handle mbufs that are singletons.. not chains */
 		m = sctp_get_mbuf_for_msg(SCTP_BUF_LEN(m), 0, M_NOWAIT, 1, MT_DATA);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (m) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			/* ok lets see if we can copy the data up */
 			caddr_t *from, *to;
 			/* get the pointers and copy */
 			to = mtod(m, caddr_t *);
 			from = mtod((*mm), caddr_t *);
-			printf("SCTP_BUF_LEN((*mm))=%d\n", SCTP_BUF_LEN((*mm)));
+			
 			memcpy(to, from, SCTP_BUF_LEN((*mm)));
 			/* copy the length and free up the old */
 			SCTP_BUF_LEN(m) = SCTP_BUF_LEN((*mm));
@@ -2698,30 +2696,30 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* get pointer to the first chunk header */
 	ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 						     sizeof(struct sctp_chunkhdr), (uint8_t *) & chunk_buf);
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (ch == NULL) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		return (1);
 	}
 	/*
 	 * process all DATA chunks...
 	 */
-	 printf("%s:%d\n", __func__, __LINE__);
+
 	*high_tsn = asoc->cumulative_tsn;
 	break_flag = 0;
 	asoc->data_pkts_seen++;
 	while (stop_proc == 0) {
 		/* validate chunk length */
-		printf("%s:%d\n", __func__, __LINE__);
+
 		chk_length = ntohs(ch->chunk_length);
-		printf("chk_type=%d chk_length=%d\n", ch->chunk_type, chk_length);
-		printf("length=%d offset=%d\n", length, *offset);
+		
+		
 		if (length - *offset < chk_length) {
 			/* all done, mutulated chunk */
 			stop_proc = 1;
 			continue;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((asoc->idata_supported == 1) &&
 		    (ch->chunk_type == SCTP_DATA)) {
 			struct mbuf *op_err;
@@ -2744,24 +2742,24 @@ printf("%s:%d\n", __func__, __LINE__);
 			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 			return (2);
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((ch->chunk_type == SCTP_DATA) ||
 		    (ch->chunk_type == SCTP_IDATA)) {
 			int clen;
-printf("%s:%d\n", __func__, __LINE__);
+
 			if (ch->chunk_type == SCTP_DATA) {
 				clen = sizeof(struct sctp_data_chunk);
 			} else {
 				clen = sizeof(struct sctp_idata_chunk);
 			}
-			printf("%s:%d\n", __func__, __LINE__);
-			printf("chk_length=%d  clen=%d\n", chk_length, clen);
+
+
 			if (chk_length < clen) {
 				/*
 				 * Need to send an abort since we had a
 				 * invalid data chunk.
 				 */
-				 printf("%s:%d\n", __func__, __LINE__);
+
 				struct mbuf *op_err;
 				char msg[SCTP_DIAG_INFO_LEN];
 
@@ -2780,13 +2778,13 @@ printf("%s:%d\n", __func__, __LINE__);
 			} else {
 				last_chunk = 0;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
+
 			if (sctp_process_a_data_chunk(stcb, asoc, mm, *offset,
 						      chk_length, net, high_tsn, &abort_flag, &break_flag,
 						      last_chunk, ch->chunk_type)) {
 				num_chunks++;
 			}
-			printf("%s:%d\n", __func__, __LINE__);
+
 			if (abort_flag)
 				return (2);
 
@@ -2832,7 +2830,7 @@ printf("%s:%d\n", __func__, __LINE__);
 				 * switch out and do either an ABORT() or
 				 * possibly process them.
 				 */
-				 printf("%s:%d\n", __func__, __LINE__);
+
 				struct mbuf *op_err;
 				char msg[SCTP_DIAG_INFO_LEN];
 
@@ -2844,7 +2842,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			}
 			default:
 				/* unknown chunk type, use bit rules */
-				printf("%s:%d\n", __func__, __LINE__);
+
 				if (ch->chunk_type & 0x40) {
 					/* Add a error report to the queue */
 					struct mbuf *op_err;
@@ -2874,28 +2872,28 @@ printf("%s:%d\n", __func__, __LINE__);
 			}	/* switch of chunk type */
 		}
 		*offset += SCTP_SIZE32(chk_length);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((*offset >= length) || stop_proc) {
 			/* no more data left in the mbuf chain */
 			stop_proc = 1;
 			continue;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 							     sizeof(struct sctp_chunkhdr), (uint8_t *) & chunk_buf);
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (ch == NULL) {
 			*offset = length;
 			stop_proc = 1;
 			continue;
 		}
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (break_flag) {
 		/*
 		 * we need to report rwnd overrun drops.
 		 */
-		 printf("%s:%d\n", __func__, __LINE__);
+
 		sctp_send_packet_dropped(stcb, net, *mm, length, iphlen, 0);
 	}
 	if (num_chunks) {
@@ -2903,7 +2901,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		 * Did we get data, if so update the time for auto-close and
 		 * give peer credit for being alive.
 		 */
-		 printf("%s:%d\n", __func__, __LINE__);
+
 		SCTP_STAT_INCR(sctps_recvpktwithdata);
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 			sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -2920,10 +2918,10 @@ printf("%s:%d\n", __func__, __LINE__);
 		/* Assure that we ack right away */
 		stcb->asoc.send_sack = 1;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/* Start a sack timer or QUEUE a SACK for sending */
 	sctp_sack_check(stcb, was_a_gap);
-	printf("%s:%d\n", __func__, __LINE__);
+
 	return (0);
 }
 
@@ -3137,7 +3135,7 @@ sctp_process_segment_range(struct sctp_tcb *stcb, struct sctp_tmit_chunk **p_tp1
 						tp1->sent = SCTP_DATAGRAM_NR_ACKED;
 						if (tp1->data) {
 							/* sa_ignore NO_NULL_CHK */
-							printf("%s:%d\n", __func__, __LINE__);
+
 							sctp_free_bufspace(stcb, &stcb->asoc, tp1, 1);
 							sctp_m_freem(tp1->data);
 							tp1->data = NULL;
@@ -3304,7 +3302,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 	 * select the sending_seq, this is either the next thing ready to be
 	 * sent but not transmitted, OR, the next seq we assign.
 	 */
-	 printf("%s:%d\n", __func__, __LINE__);
+
 	tp1 = TAILQ_FIRST(&stcb->asoc.send_queue);
 	if (tp1 == NULL) {
 		sending_seq = asoc->sending_seq;
@@ -3672,7 +3670,7 @@ sctp_strike_gap_ack_chunks(struct sctp_tcb *stcb, struct sctp_association *asoc,
 			 * SCTP_PRINTF("Marking TSN for FR new value %x\n",
 			 * (uint32_t)tpi->rec.data.tsn);
 			 */
-			 printf("%s:%d\n", __func__, __LINE__);
+
 			if (TAILQ_EMPTY(&asoc->send_queue)) {
 				/*
 				 * If the queue of send is empty then its
@@ -3912,14 +3910,14 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 	int j, done_once = 0;
 	int rto_ok = 1;
 	uint32_t send_s;
-printf("%s:%d\n", __func__, __LINE__);
+
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_SACK_ARRIVALS_ENABLE) {
 		sctp_misc_ints(SCTP_SACK_LOG_EXPRESS, cumack,
 		               rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	SCTP_TCB_LOCK_ASSERT(stcb);
-	printf("%s:%d\n", __func__, __LINE__);
+
 #ifdef SCTP_ASOCLOG_OF_TSNS
 	stcb->asoc.cumack_log[stcb->asoc.cumack_log_at] = cumack;
 	stcb->asoc.cumack_log_at++;
@@ -3927,37 +3925,35 @@ printf("%s:%d\n", __func__, __LINE__);
 		stcb->asoc.cumack_log_at = 0;
 	}
 #endif
-printf("%s:%d\n", __func__, __LINE__);
+
 	asoc = &stcb->asoc;
-	printf("%s:%d\n", __func__, __LINE__);
+
 	old_rwnd = asoc->peers_rwnd;
-	printf("%s:%d\n", __func__, __LINE__);
-	printf("last_acked_seq=%u cumack=%u\n", asoc->last_acked_seq, cumack);
+
+
 	if (SCTP_TSN_GT(asoc->last_acked_seq, cumack)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* old ack */
 		return;
 	} else if (asoc->last_acked_seq == cumack) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* Window update sack */
-		printf("rwnd=%d, asoc->total_flight=%d, asoc->total_flight_count=%d, sctp_peer_chunk_oh=%d\n", rwnd, asoc->total_flight, asoc->total_flight_count, SCTP_BASE_SYSCTL(sctp_peer_chunk_oh));
 		asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
 						    (uint32_t) (asoc->total_flight + (asoc->total_flight_count * SCTP_BASE_SYSCTL(sctp_peer_chunk_oh))));
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (asoc->peers_rwnd < stcb->sctp_ep->sctp_ep.sctp_sws_sender) {
 			/* SWS sender side engages */
 			asoc->peers_rwnd = 0;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
-		printf("peers_rwnd=%d old_rwnd=%d\n", asoc->peers_rwnd, old_rwnd);
-		if (asoc->peers_rwnd > old_rwnd) {
-		printf("%s:%d\n", __func__, __LINE__);
+
+			if (asoc->peers_rwnd > old_rwnd) {
+
 			goto again;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		return;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (SCTP_TSN_GT(cumack, net->cwr_window_tsn)) {
@@ -3965,9 +3961,9 @@ printf("%s:%d\n", __func__, __LINE__);
 			net->cwr_window_tsn = cumack;
 		}
 		net->prev_cwnd = net->cwnd;
-		printf("%s:%d\n", __func__, __LINE__);
+
 		net->net_ack = 0;
-		printf("%s:%d\n", __func__, __LINE__);
+
 		net->net_ack2 = 0;
 
 		/*
@@ -3987,7 +3983,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else {
 		send_s = asoc->sending_seq;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (SCTP_TSN_GE(cumack, send_s)) {
 		struct mbuf *op_err;
 		char msg[SCTP_DIAG_INFO_LEN];
@@ -4009,15 +4005,15 @@ printf("%s:%d\n", __func__, __LINE__);
 			       SCTP_FROM_SCTP_INDATA,
 			       __LINE__);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	stcb->asoc.overall_error_count = 0;
 	if (SCTP_TSN_GT(cumack, asoc->last_acked_seq)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* process the new consecutive TSN first */
 		TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if (SCTP_TSN_GE(cumack, tp1->rec.data.tsn)) {
-			printf("%s:%d\n", __func__, __LINE__);
+
 				if (tp1->sent == SCTP_DATAGRAM_UNSENT) {
 					SCTP_PRINTF("Warning, an unsent is now acked?\n");
 				}
@@ -4027,33 +4023,31 @@ printf("%s:%d\n", __func__, __LINE__);
 					 * now no-longer in flight. Higher
 					 * values may occur during marking
 					 */
-					 printf("%s:%d\n", __func__, __LINE__);
+
 					if (tp1->sent < SCTP_DATAGRAM_RESEND) {
-					printf("%s:%d\n", __func__, __LINE__);
+
 						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
-						printf("%s:%d\n", __func__, __LINE__);
+
 							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
 								       tp1->whoTo->flight_size,
 								       tp1->book_size,
 								       (uint32_t)(uintptr_t)tp1->whoTo,
 								       tp1->rec.data.tsn);
 						}
-						printf("%s:%d\n", __func__, __LINE__);
+
 						sctp_flight_size_decrease(tp1);
-						printf("%s:%d\n", __func__, __LINE__);
+
 						if (stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged) {
-							printf("%s:%d\n", __func__, __LINE__);
+
 							(*stcb->asoc.cc_functions.sctp_cwnd_update_tsn_acknowledged)(tp1->whoTo,
 														     tp1);
 						}
 						/* sa_ignore NO_NULL_CHK */
 						sctp_total_flight_decrease(stcb, tp1);
 					}
-					printf("%s:%d\n", __func__, __LINE__);
-					printf("tp1->whoTo->net_ack=%d\n", tp1->whoTo->net_ack);
-					printf("tp1->send_size=%d\n", tp1->send_size);
+
 					tp1->whoTo->net_ack += tp1->send_size;
-					printf("%s:%d\n", __func__, __LINE__);
+
 					if (tp1->snd_count < 2) {
 						/*
 						 * True non-retransmited
@@ -4061,7 +4055,7 @@ printf("%s:%d\n", __func__, __LINE__);
 						 */
 						tp1->whoTo->net_ack2 +=
 							tp1->send_size;
-printf("%s:%d\n", __func__, __LINE__);
+
 						/* update RTO too? */
 						if (tp1->do_rtt) {
 							if (rto_ok) {
@@ -4098,7 +4092,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					tp1->whoTo->new_pseudo_cumack = 1;
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
-printf("%s:%d\n", __func__, __LINE__);
+
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 						/* sa_ignore NO_NULL_CHK */
 						sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.tsn, SCTP_CWND_LOG_FROM_SACK);
@@ -4121,22 +4115,22 @@ printf("%s:%d\n", __func__, __LINE__);
 #endif
 					}
 				}
-				printf("%s:%d\n", __func__, __LINE__);
+
 				if ((asoc->strmout[tp1->rec.data.sid].chunks_on_queues == 0) &&
 				    (asoc->strmout[tp1->rec.data.sid].state == SCTP_STREAM_RESET_PENDING) &&
 				    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.sid].outqueue)) {
 					asoc->trigger_reset = 1;
 				}
-				printf("%s:%d\n", __func__, __LINE__);
-				printf("%d chunks in sent queue\n", asoc->sent_queue_cnt);
+
+
 				TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
-				printf("%s:%d\n", __func__, __LINE__);
+
 				if (tp1->data) {
 					/* sa_ignore NO_NULL_CHK */
-					printf("%s:%d\n", __func__, __LINE__);
-					printf("unsent data: %d\n", stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
+
+
 					sctp_free_bufspace(stcb, asoc, tp1, 1);
-					printf("unsent data: %d\n", stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
+
 					sctp_m_freem(tp1->data);
 					tp1->data = NULL;
 				}
@@ -4149,13 +4143,13 @@ printf("%s:%d\n", __func__, __LINE__);
 						      SCTP_LOG_FREE_SENT);
 				}
 				asoc->sent_queue_cnt--;
-				printf("asoc->sent_queue_cnt now %d\n", stcb->asoc.sent_queue_cnt);
-				printf("%s:%d\n", __func__, __LINE__);
+
+
 				if (tp1->sent != SCTP_DATAGRAM_INIT_SENT) {
 					sctp_free_a_chunk(stcb, tp1, SCTP_SO_NOT_LOCKED);
 				} else {
-					printf("%d chunks in send queue\n", stcb->asoc.send_queue_cnt);
-					printf("remove tp1=%p\n", (void *)tp1);
+
+
 					TAILQ_REMOVE(&stcb->asoc.send_queue, tp1, sctp_next);
 					asoc->send_queue_cnt--;
 				}
@@ -4272,7 +4266,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	asoc->last_acked_seq = cumack;
 
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* nothing left in-flight */
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			net->flight_size = 0;
@@ -4281,7 +4275,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* RWND update */
 	asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
 					    (uint32_t) (asoc->total_flight + (asoc->total_flight_count * SCTP_BASE_SYSCTL(sctp_peer_chunk_oh))));
@@ -4295,7 +4289,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* Now assure a timer where data is queued at */
 again:
 	j = 0;
-	printf("%s:%d\n", __func__, __LINE__);
+
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (win_probe_recovery && (net->window_probe)) {
 			win_probe_recovered = 1;
@@ -4312,7 +4306,7 @@ again:
 				}
 			}
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (net->flight_size) {
 			j++;
 			sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, net);
@@ -4333,7 +4327,7 @@ again:
 			}
 		}
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if ((j == 0) &&
 	    (!TAILQ_EMPTY(&asoc->sent_queue)) &&
 	    (asoc->sent_queue_retran_cnt == 0) &&
@@ -4361,14 +4355,14 @@ again:
 		done_once = 1;
 		goto again;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/**********************************/
 	/* Now what about shutdown issues */
 	/**********************************/
 	if (TAILQ_EMPTY(&asoc->send_queue) && TAILQ_EMPTY(&asoc->sent_queue)) {
 		/* nothing left on sendqueue.. consider done */
 		/* clean up */
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((asoc->stream_queue_cnt == 1) &&
 		    ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) ||
 		     (asoc->state & SCTP_STATE_SHUTDOWN_RECEIVED)) &&
@@ -4388,11 +4382,11 @@ again:
 			sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 			return;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
-printf("%s:%d\n", __func__, __LINE__);
+
 			if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 			    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
@@ -4413,7 +4407,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		} else if ((SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			   (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
-printf("%s:%d\n", __func__, __LINE__);
+
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
@@ -4434,7 +4428,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	/*********************************************/
 	/* C1. update advancedPeerAckPoint */
 	if (SCTP_TSN_GT(cumack, asoc->advanced_peer_ack_point)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		asoc->advanced_peer_ack_point = cumack;
 	}
 	/* PR-Sctp issues need to be addressed too */
@@ -4464,7 +4458,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					 stcb->sctp_ep, stcb, lchk->whoTo);
 		}
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_SACK_RWND_LOGGING_ENABLE) {
 		sctp_misc_ints(SCTP_SACK_RWND_UPDATE,
 			       rwnd,
@@ -4472,7 +4466,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			       stcb->asoc.total_flight,
 			       stcb->asoc.total_output_queue_size);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 }
 
 void
@@ -4538,7 +4532,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		sctp_misc_ints(SCTP_SACK_LOG_NORMAL, cum_ack,
 		               rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	old_rwnd = stcb->asoc.peers_rwnd;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -4572,7 +4566,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	}
 	/* reality check */
 	if (!TAILQ_EMPTY(&asoc->sent_queue)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		tp1 = TAILQ_LAST(&asoc->sent_queue,
 				 sctpchunk_listhead);
 		send_s = tp1->rec.data.tsn + 1;
@@ -4580,7 +4574,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		tp1 = NULL;
 		send_s = asoc->sending_seq;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	if (SCTP_TSN_GE(cum_ack, send_s)) {
 		struct mbuf *op_err;
 		char msg[SCTP_DIAG_INFO_LEN];
@@ -4612,13 +4606,13 @@ printf("%s:%d\n", __func__, __LINE__);
 		/* acking something behind */
 		return;
 	}
-printf("%s:%d\n", __func__, __LINE__);
+
 	/* update the Rwnd of the peer */
 	if (TAILQ_EMPTY(&asoc->sent_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
 	    (asoc->stream_queue_cnt == 0)) {
 		/* nothing left on send/sent and strmq */
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
 			sctp_log_rwnd_set(SCTP_SET_PEER_RWND_VIA_SACK,
 			                  asoc->peers_rwnd, 0, 0, a_rwnd);
@@ -4633,7 +4627,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		/* stop any timers */
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
 			                stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_26);
 			net->partial_bytes_acked = 0;
@@ -4643,7 +4637,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		asoc->total_flight_count = 0;
 		return;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
+
 	/*
 	 * We init netAckSz and netAckSz2 to 0. These are used to track 2
 	 * things. The total byte count acked is tracked in netAckSz AND
@@ -4672,11 +4666,11 @@ printf("%s:%d\n", __func__, __LINE__);
 	}
 	/* process the new consecutive TSN first */
 	TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		if (SCTP_TSN_GE(last_tsn, tp1->rec.data.tsn)) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if (tp1->sent != SCTP_DATAGRAM_UNSENT) {
-			printf("%s:%d\n", __func__, __LINE__);
+
 				accum_moved = 1;
 				if (tp1->sent < SCTP_DATAGRAM_ACKED) {
 					/*
@@ -4684,7 +4678,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					 * now no-longer in flight. Higher
 					 * values may occur during marking
 					 */
-					 printf("%s:%d\n", __func__, __LINE__);
+
 					if ((tp1->whoTo->dest_state &
 					     SCTP_ADDR_UNCONFIRMED) &&
 					    (tp1->snd_count < 2)) {
@@ -4700,7 +4694,7 @@ printf("%s:%d\n", __func__, __LINE__);
 							~SCTP_ADDR_UNCONFIRMED;
 					}
 					if (tp1->sent < SCTP_DATAGRAM_RESEND) {
-					printf("%s:%d\n", __func__, __LINE__);
+
 						if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
 							sctp_misc_ints(SCTP_FLIGHT_LOG_DOWN_CA,
 							               tp1->whoTo->flight_size,
@@ -4726,7 +4720,7 @@ printf("%s:%d\n", __func__, __LINE__);
 						 * True non-retransmited
 						 * chunk
 						 */
-						 printf("%s:%d\n", __func__, __LINE__);
+
 						tp1->whoTo->net_ack2 +=
 							tp1->send_size;
 
@@ -4747,7 +4741,7 @@ printf("%s:%d\n", __func__, __LINE__);
 							tp1->do_rtt = 0;
 						}
 					}
-					printf("%s:%d\n", __func__, __LINE__);
+
 					/*
 					 * CMT: CUCv2 algorithm. From the
 					 * cumack'd TSNs, for each TSN being
@@ -4790,7 +4784,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					tp1->rec.data.chunk_was_revoked = 0;
 				}
 				if (tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
-				printf("%s:%d\n", __func__, __LINE__);
+
 					tp1->sent = SCTP_DATAGRAM_ACKED;
 				}
 			}
@@ -4801,7 +4795,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	biggest_tsn_newly_acked = biggest_tsn_acked = last_tsn;
 	/* always set this up to cum-ack */
 	asoc->this_sack_highest_gap = last_tsn;
-printf("%s:%d\n", __func__, __LINE__);
+
 	if ((num_seg > 0) || (num_nr_seg > 0)) {
 
 		/*
@@ -4843,7 +4837,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* cancel ALL T3-send timer if accum moved */
 	/*******************************************/
 	if (asoc->sctp_cmt_on_off > 0) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			if (net->new_pseudo_cumack)
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
@@ -4853,7 +4847,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	} else {
 		if (accum_moved) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 				sctp_timer_stop(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep,
 				                stcb, net, SCTP_FROM_SCTP_INDATA + SCTP_LOC_28);
@@ -4866,12 +4860,12 @@ printf("%s:%d\n", __func__, __LINE__);
 	asoc->last_acked_seq = cum_ack;
 
 	TAILQ_FOREACH_SAFE(tp1, &asoc->sent_queue, sctp_next, tp2) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		if (SCTP_TSN_GT(tp1->rec.data.tsn, cum_ack)) {
 			break;
 		}
 		if (tp1->sent != SCTP_DATAGRAM_NR_ACKED) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if (asoc->strmout[tp1->rec.data.sid].chunks_on_queues > 0) {
 				asoc->strmout[tp1->rec.data.sid].chunks_on_queues--;
 #ifdef INVARIANTS
@@ -4885,21 +4879,21 @@ printf("%s:%d\n", __func__, __LINE__);
 		    TAILQ_EMPTY(&asoc->strmout[tp1->rec.data.sid].outqueue)) {
 			asoc->trigger_reset = 1;
 		}
-		printf("%s:%d\n", __func__, __LINE__);
+
 		TAILQ_REMOVE(&asoc->sent_queue, tp1, sctp_next);
 		if (PR_SCTP_ENABLED(tp1->flags)) {
 			if (asoc->pr_sctp_cnt != 0)
 				asoc->pr_sctp_cnt--;
 		}
 		asoc->sent_queue_cnt--;
-		printf("%s:%d\n", __func__, __LINE__);
+
 		if (tp1->data) {
 			/* sa_ignore NO_NULL_CHK */
-			printf("%s:%d\n", __func__, __LINE__);
-			printf("unsent data: %d\n", stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
+
+			
 			sctp_free_bufspace(stcb, asoc, tp1, 1);
-			printf("unsent data: %d\n", stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
-			printf("%s:%d\n", __func__, __LINE__);
+			
+
 			sctp_m_freem(tp1->data);
 			tp1->data = NULL;
 			if (asoc->prsctp_supported && PR_SCTP_BUF_ENABLED(tp1->flags)) {
@@ -4918,7 +4912,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		wake_him++;
 	}
 	if (TAILQ_EMPTY(&asoc->sent_queue) && (asoc->total_flight > 0)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 #ifdef INVARIANTS
 		panic("Warning flight size is positive and should be 0");
 #else
@@ -5009,7 +5003,7 @@ printf("%s:%d\n", __func__, __LINE__);
 
 		/* Peer revoked all dg's marked or acked */
 		TAILQ_FOREACH(tp1, &asoc->sent_queue, sctp_next) {
-		printf("%s:%d\n", __func__, __LINE__);
+
 			if (tp1->sent == SCTP_DATAGRAM_ACKED) {
 				tp1->sent = SCTP_DATAGRAM_SENT;
 				if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_FLIGHT_LOGGING_ENABLE) {
@@ -5091,7 +5085,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	}
 
 	if (TAILQ_EMPTY(&asoc->sent_queue)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* nothing left in-flight */
 		TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 			/* stop all timers */
@@ -5109,7 +5103,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* Now what about shutdown issues */
 	/**********************************/
 	if (TAILQ_EMPTY(&asoc->send_queue) && TAILQ_EMPTY(&asoc->sent_queue)) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		/* nothing left on sendqueue.. consider done */
 		if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_LOG_RWND_ENABLE) {
 			sctp_log_rwnd_set(SCTP_SET_PEER_RWND_VIA_SACK,
@@ -5362,7 +5356,7 @@ again:
 		               stcb->asoc.total_flight,
 		               stcb->asoc.total_output_queue_size);
 	}
-	printf("end of handle_sack unsent=%d\n", stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
+	
 }
 
 void
