@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 #ifdef SCTP_DEBUG
-	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
+	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
 #endif
 	//usrsctp_sysctl_set_sctp_blackhole(2);
 
@@ -90,7 +90,7 @@ main(int argc, char *argv[])
 		perror("usrsctp_socket");
 	}
 
-	optval = 1;
+	optval = 0;
 	if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_EMPTY_ALT_COOKIE, &optval, sizeof(int)) < 0) {
 		perror("setsockopt: SCTP_EMPTY_ALT_COOKIE");
 	}

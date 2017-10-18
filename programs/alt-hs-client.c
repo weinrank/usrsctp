@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 
 	seconds = 0.0;
 
-	for (loop_count = 0; loop_count < 24; loop_count++) {
+	for (loop_count = 0; loop_count < 1; loop_count++) {
 		if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
 			perror("usrsctp_socket");
 			result = 1;
@@ -158,12 +158,12 @@ main(int argc, char *argv[])
 		addr4.sin_port     = htons(80);
 
 		if (inet_pton(AF_INET, argv[1], &addr4.sin_addr) == 1) {
-			if (usrsctp_connect(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
+			/*if (usrsctp_connect(sock, (struct sockaddr *)&addr4, sizeof(struct sockaddr_in)) < 0) {
 				perror("usrsctp_connect");
 				usrsctp_close(sock);
 				result = 5;
 				goto out;
-			}
+			}*/
 		} else {
 			printf("Illegal destination address\n");
 			usrsctp_close(sock);
@@ -172,7 +172,7 @@ main(int argc, char *argv[])
 		}
 
 		/* send GET request */
-		if (usrsctp_sendv(sock, request, strlen(request), NULL, 0, NULL, 0, SCTP_SENDV_NOINFO, 0) < 0) {
+		if (usrsctp_sendv(sock, request, strlen(request), (struct sockaddr *)&addr4, 1, NULL, 0, SCTP_SENDV_NOINFO, 0) < 0) {
 			perror("usrsctp_sendv");
 			usrsctp_close(sock);
 			result = 6;
