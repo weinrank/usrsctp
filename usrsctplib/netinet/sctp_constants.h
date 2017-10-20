@@ -447,11 +447,13 @@ extern void getwintimeofday(struct timeval *tv);
 
 #define SCTP_ALT_COOKIE			0xb007
 #define SCTP_ALT_DATA			0xb008
+#define SCTP_ALT_SACK			0xb009
 
 #define ABORT_NO_ABORT		0x0001
 #define ABORT_PROCESSING		0x0010
 #define ABORT_COOKIE_REQ		0x0100
 #define ABORT_DATA_SENT			0x1000
+#define ABORT_COOKIE_ACCEPTED	0x2000
 
 /*************0xC000 series*************/
 #define SCTP_PRSCTP_SUPPORTED		0xc000

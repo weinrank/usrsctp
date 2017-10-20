@@ -253,6 +253,11 @@ struct sctp_alt_data_param {
 	uint8_t data[];
 } SCTP_PACKED;
 
+struct sctp_alt_sack_param {
+	struct sctp_paramhdr ph;
+	uint32_t cum_tsn_ack;
+} SCTP_PACKED;
+
 struct sctp_init_chunk {
 	struct sctp_chunkhdr ch;
 	struct sctp_init init;

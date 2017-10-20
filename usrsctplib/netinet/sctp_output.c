@@ -94,6 +94,14 @@ sctp_fill_outqueue(struct sctp_tcb *stcb,
 #endif
 );
 
+static struct mbuf *
+sctp_copy_mbufchain(struct mbuf *clonechain,
+	                struct mbuf *outchain,
+	                struct mbuf **endofchain,
+	                int can_take_mbuf,
+	                int sizeofcpy,
+	                uint8_t copy_by_ref);
+
 #define SCTP_MAX_GAPS_INARRAY 4
 struct sack_track {
 	uint8_t right_edge;	/* mergable on the right edge */
@@ -5488,13 +5496,14 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 
 	struct mbuf *mat, *op_err;
 	char tempbuf[SCTP_PARAM_BUFFER_SIZE];
-	int at, limit, pad_needed, opp_len = 0;
+	int at, limit, pad_needed;
 	uint16_t ptype, plen, padded_size;
 	int err_at;
 
 	*abort_processing = ABORT_NO_ABORT;
 	mat = in_initpkt;
 	err_at = 0;
+	printf("chunk_length = %d\n", ntohs(cp->chunk_length));
 	limit = ntohs(cp->chunk_length) - sizeof(struct sctp_init_chunk);
 	at = param_offset;
 	op_err = NULL;
@@ -5547,6 +5556,9 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 				SCTPDBG(SCTP_DEBUG_OUTPUT1, "Invalid size - error random %d\n", plen);
 				goto invalid_size;
 			}
+			at += padded_size;
+			break;
+		case SCTP_HMAC_LIST:
 			at += padded_size;
 			break;
 		case SCTP_SET_PRIM_ADDR:
@@ -5681,13 +5693,19 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 		}
 		case SCTP_ALT_COOKIE:
 		{
-		printf("SCTP_ALT_COOKIE\n");
+			printf("SCTP_ALT_COOKIE\n");
 			if (plen == sizeof(struct sctp_paramhdr)) {
 			printf("empty cookie\n");
 				/* Empty ALT_COOKIE -> send ABORT with Cookie */
-				*abort_processing |= ABORT_COOKIE_REQ;
-				at += padded_size;
-			} else {
+				if (cp->chunk_type == SCTP_INITIATION) {
+					*abort_processing |= ABORT_COOKIE_REQ;
+				} else if (cp->chunk_type == SCTP_INITIATION_ACK) {
+					*abort_processing |= ABORT_COOKIE_ACCEPTED;
+				}
+				//at += padded_size;
+			}
+#if 0
+			else {
 				struct sctp_alt_cookie_param *acp, *new;
 				int i, offset = 0;
 				printf("%s:%d\n", __func__, __LINE__);
@@ -5704,17 +5722,18 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 					}
 					SCTP_BUF_LEN(op_err) = ntohs(acp->ph.param_length);
 				}
+				opp_len += ntohs(acp->ph.param_length);
+#endif
 				//return (op_err);
 				at += padded_size;
 				printf("%s:%d\n", __func__, __LINE__);
-				printf("op_err length=%d\n", SCTP_BUF_LEN(op_err));
-				opp_len += ntohs(acp->ph.param_length);
-			}
+			//}
 			break;
 		}
 		case SCTP_ALT_DATA:
 		{
 		printf("SCTP_ALT_DATA\n");
+#if 0
 			struct sctp_alt_data_param *adp, *newd;
 			struct mbuf *mret;
 			printf("%s:%d\n", __func__, __LINE__);
@@ -5763,8 +5782,21 @@ sctp_arethere_unrecognized_parameters(struct mbuf *in_initpkt,
 			SCTP_BUF_LEN(op_err) = opp_len;
 			printf("now op_err length=%d\n", SCTP_BUF_LEN(op_err));
 			printf("%s:%d\n", __func__, __LINE__);
+#endif
 			at += padded_size;
 			printf("%s:%d\n", __func__, __LINE__);
+			break;
+		}
+		case SCTP_ALT_SACK:
+		{
+		/*
+			printf("SCTP_ALT_SACK\n");
+			struct sctp_alt_sack_param *asp;
+			uint32_t cumack;
+			asp = (struct sctp_alt_sack_param *)sctp_get_next_param(mat, at, &params, sizeof(params));
+			printf("%s:%d\n", __func__, __LINE__);
+			cumack = ntohl(asp->cum_tsn_ack);
+			printf("cumack=%u\n", cumack);*/
 			break;
 		}
 		default:
@@ -6182,13 +6214,13 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	int notification = 0;
 	int c_size = 0;
 	struct sctp_inpcb *temp_inp = NULL;
-	struct mbuf *alt_data = NULL;
 
 	if ((*stcb)) {
 		asoc = &((*stcb)->asoc);
 	} else {
 		asoc = NULL;
 	}
+
 	if ((asoc != NULL) &&
 	    (SCTP_GET_STATE(asoc) != SCTP_STATE_COOKIE_WAIT)) {
 		if (sctp_are_there_new_addresses(asoc, init_pkt, offset, src)) {
@@ -6275,12 +6307,13 @@ printf("%s:%d\n", __func__, __LINE__);
 	}
 	printf("%s:%d\n", __func__, __LINE__);
 	if (abort_flag & ABORT_NO_ABORT) {
-	printf("%s:%d\n", __func__, __LINE__);
+
 		if (op_err) {
-			struct sctp_paramhdr *phr = mtod(op_err, struct sctp_paramhdr *);
-			int off = 0;
+			//struct sctp_paramhdr *phr = mtod(op_err, struct sctp_paramhdr *);
+			//int off = 0;
 			printf("%s:%d\n", __func__, __LINE__);
 			printf("Length op_err=%d\n", SCTP_BUF_LEN(op_err));
+#if 0
 			if (ntohs(phr->param_type) == SCTP_ALT_COOKIE) {
 			printf("SCTP_ALT_COOKIE parameter\n");
 				char *calc_cookie = NULL;
@@ -6289,6 +6322,7 @@ printf("%s:%d\n", __func__, __LINE__);
 				calc_cookie = sctp_create_alternative_cookie((*inp), dst);
 				acp = (struct sctp_alt_cookie_param *)(mtod(op_err, struct sctp_alt_cookie_param *));
 				cookie_accepted = 1;
+
 				if (memcmp(acp->cookie, calc_cookie, ntohs(phr->param_length)-sizeof(struct sctp_paramhdr)) != 0) {
 					printf("sctp_send_initiate_ack: Alternative cookies are not the same\n");
 					SCTPDBG(SCTP_DEBUG_OUTPUT2,
@@ -6300,7 +6334,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					cookie = sctp_create_alternative_cookie((*inp), dst);
 					op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, (char *)cookie);
 					sctp_send_abort(init_pkt, iphlen, src, dst, sh,
-					                init_chk->init.initiate_tag, op_err,
+					                init_chk->init.initiate_tag, load,
 #if defined(__FreeBSD__)
 					                mflowtype, mflowid, (*inp)->fibnum,
 #endif
@@ -6310,13 +6344,15 @@ printf("%s:%d\n", __func__, __LINE__);
 				SCTP_BUF_LEN(op_err) -= ntohs(phr->param_length);
 				off = ntohs(phr->param_length);
 			}
+#endif
+#if 0
 			if (abort_flag & ABORT_DATA_SENT) {
 				printf("Parameter with DATA was sent. Now handle it and send a SACK\n");
 				struct sctp_alt_data_param *adp;
 				int l = SCTP_BUF_LEN(op_err);
 				//int retval = 0;
 				printf("Length op_err=%d\n", SCTP_BUF_LEN(op_err));
-				op_err = SCTP_BUF_NEXT(op_err);
+				//op_err = SCTP_BUF_NEXT(op_err);
 				SCTP_BUF_LEN(op_err) = l;
 				printf("%s:%d\n", __func__, __LINE__);
 				adp = (struct sctp_alt_data_param *)(mtod(op_err, struct sctp_alt_data_param *));
@@ -6328,7 +6364,7 @@ printf("%s:%d\n", __func__, __LINE__);
 					printf("length data chunks = %d\n", len);
 					alt_data = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
 					/*alt_data = op_err;*/
-					struct sctp_chunkhdr *chptr = (struct sctp_chunkhdr *)mtod(op_err, caddr_t);
+					struct sctp_chunkhdr *chptr = (struct sctp_chunkhdr *)(mtod(op_err, caddr_t) + 4);
 	printf("op_err->type = %d op_err->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
 					caddr_t *from, *tom;
 					printf("%s:%d\n", __func__, __LINE__);
@@ -6341,18 +6377,8 @@ printf("%s:%d\n", __func__, __LINE__);
 					memcpy(tom, from, SCTP_BUF_LEN(op_err));
 					/* copy the length and free up the old */
 					SCTP_BUF_LEN(alt_data) = SCTP_BUF_LEN(op_err);
-					//sctp_m_freem(*mm);
-					/* success, back copy */
-					//*mm = m;
-
-					/*alt_data = m_copym(op_err, 0, M_COPYALL, 0);
-				printf("alt_data=%p\n", (void *)alt_data);
-					SCTP_BUF_LEN(alt_data) = len;*/
-					chptr = (struct sctp_chunkhdr *)mtod(alt_data, caddr_t);
+					chptr = (struct sctp_chunkhdr *)(mtod(alt_data, caddr_t) + 4);
 	printf("type=%d alt_chptr->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
-					/*retval = sctp_process_data(&op_err, 0, &off,
-					                           ntohs(adp->ph.param_length) - sizeof(struct sctp_paramhdr),
-					                           *inp, *stcb, net, &high_tsn);*/
 				}
 			}
 			if (cookie_accepted == 1) {
@@ -6360,8 +6386,10 @@ printf("%s:%d\n", __func__, __LINE__);
 				op_err = NULL;
 				printf("alt_data=%p\n", (void *)alt_data);
 			}
+#endif
 		}
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m == NULL) {
 		/* No memory, INIT timer will re-attempt. */
@@ -6651,6 +6679,7 @@ printf("%s:%d\n", __func__, __LINE__);
 #endif
 		}
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	/* Now lets put the SCTP header in place */
 	initack = mtod(m, struct sctp_init_ack_chunk *);
 	/* Save it off for quick ref */
@@ -6705,6 +6734,11 @@ printf("%s:%d\n", __func__, __LINE__);
 	}
 	/* save away my tag to */
 	stc.my_vtag = initack->init.initiate_tag;
+printf("%s:%d\n", __func__, __LINE__);
+/*SCTP_INP_INCR_REF((*inp));
+		printf("%s:%d\n", __func__, __LINE__);
+		SCTP_INP_RUNLOCK((*inp));*/
+	printf("%s:%d\n", __func__, __LINE__);
 
 	/* set up some of the credits. */
 	so = (*inp)->sctp_socket;
@@ -6737,15 +6771,17 @@ printf("%s:%d\n", __func__, __LINE__);
 	/* tell him his limit. */
 	initack->init.num_inbound_streams =
 		htons((*inp)->sctp_ep.max_open_streams_intome);
-
-	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
+printf("%s:%d\n", __func__, __LINE__);
+/*
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 		parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
 		ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
 		ph->param_type = htons(SCTP_ALT_COOKIE);
 		ph->param_length = htons(parameter_len);
 		chunk_len += parameter_len;
 	}
-
+*/
+printf("%s:%d\n", __func__, __LINE__);
 	/* adaptation layer indication parameter */
 	if ((*inp)->sctp_ep.adaptation_layer_indicator_provided) {
 		parameter_len = (uint16_t)sizeof(struct sctp_adaptation_layer_indication);
@@ -6903,7 +6939,9 @@ printf("%s:%d\n", __func__, __LINE__);
 	                                    cnt_inits_to,
 	                                    &padding_len, &chunk_len);
 	/* tack on the operational error if present */
+
 	if (op_err) {
+	printf("%s:%d\n", __func__, __LINE__);
 		/* padding_len can only be positive, if no addresses have been added */
 		if (padding_len > 0) {
 			memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
@@ -6922,7 +6960,9 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 		chunk_len += parameter_len;
 	}
-	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
+
+	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1)) {
+		printf("%s:%d\n", __func__, __LINE__);
 		if (padding_len > 0) {
 			m_last = sctp_add_pad_tombuf(m_last, padding_len);
 			if (m_last == NULL) {
@@ -6953,6 +6993,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		chunk_len += parameter_len;
 	} else {
 		/* Now we must build a cookie */
+		printf("%s:%d\n", __func__, __LINE__);
 		m_cookie = sctp_add_cookie(init_pkt, offset, m, 0, &stc, NULL, &c_size);
 		if (m_cookie == NULL) {
 			/* memory problem */
@@ -6960,70 +7001,56 @@ printf("%s:%d\n", __func__, __LINE__);
 			return;
 		}
 	}
-	/* Place in the size, but we don't include
-	 * the last pad (if any) in the INIT-ACK.
-	 */
-	initack->ch.chunk_length = htons(chunk_len);
 
-	/* Time to sign the cookie, we don't sign over the cookie
-	 * signature though thus we set trailer.
-	 */
-	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted)) {
-		(void)sctp_hmac_m(SCTP_HMAC,
-				  (uint8_t *)(*inp)->sctp_ep.secret_key[(int)((*inp)->sctp_ep.current_secret_number)],
-				  SCTP_SECRET_SIZE, m_cookie, sizeof(struct sctp_paramhdr),
-				  (uint8_t *)signature, SCTP_SIGNATURE_SIZE);
-		if (stc.loopback_scope) {
-			over_addr = (union sctp_sockstore *)dst;
+	if (!(SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1)) {
+		/* Place in the size, but we don't include
+		 * the last pad (if any) in the INIT-ACK.
+		 */
+		initack->ch.chunk_length = htons(chunk_len);
+printf("%s:%d\n", __func__, __LINE__);
+		/* Time to sign the cookie, we don't sign over the cookie
+		 * signature though thus we set trailer.
+		 */
+			(void)sctp_hmac_m(SCTP_HMAC,
+					  (uint8_t *)(*inp)->sctp_ep.secret_key[(int)((*inp)->sctp_ep.current_secret_number)],
+					  SCTP_SECRET_SIZE, m_cookie, sizeof(struct sctp_paramhdr),
+					  (uint8_t *)signature, SCTP_SIGNATURE_SIZE);
+#if 0
+			if (stc.loopback_scope) {
+				over_addr = (union sctp_sockstore *)dst;
+			} else {
+				over_addr = NULL;
+			}
 		} else {
 			over_addr = NULL;
 		}
-	} else {
-		over_addr = NULL;
-	}
-	/*
-	 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
-	 * here since the timer will drive a retranmission.
-	 */
-	if (padding_len > 0) {
-		if (sctp_add_pad_tombuf(m_last, padding_len) == NULL) {
-			sctp_m_freem(m);
-			return;
+#endif
+		/*
+		 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
+		 * here since the timer will drive a retranmission.
+		 */
+		if (padding_len > 0) {
+		printf("%s:%d\n", __func__, __LINE__);
+			if (sctp_add_pad_tombuf(m_last, padding_len) == NULL) {
+				sctp_m_freem(m);
+				return;
+			}
 		}
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	if (stc.loopback_scope) {
 		over_addr = (union sctp_sockstore *)dst;
 	} else {
 		over_addr = NULL;
 	}
 
-#if 0
-	if ((error = sctp_lowlevel_chunk_output((*inp), NULL, NULL, to, m, 0, NULL, 0, 0,
-	                                        0, 0,
-	                                        (*inp)->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
-	                                        port, over_addr,
-#if defined(__FreeBSD__)
-	                                        mflowtype, mflowid,
-#endif
-	                                        SCTP_SO_NOT_LOCKED))) {
-		SCTPDBG(SCTP_DEBUG_OUTPUT4, "Gak send error %d\n", error);
-		if (error == ENOBUFS) {
-			if (asoc != NULL) {
-				asoc->ifp_had_enobuf = 1;
-			}
-			SCTP_STAT_INCR(sctps_lowlevelerr);
-		}
-	} else {
-		if (asoc != NULL) {
-			asoc->ifp_had_enobuf = 0;
-		}
-	}
-	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-#endif
-
-	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted) {
+printf("chunk_len %d\n", chunk_len);
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_INCR_REF((*inp));
+		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_RUNLOCK((*inp));
+		printf("%s:%d\n", __func__, __LINE__);
 		(*stcb) = sctp_process_cookie_new(m_cookie, iphlen, offset, src, dst, sh,
 		                                &stc, c_size, (*inp),
 		                                &net, to, &notification,
@@ -7032,6 +7059,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		                                mflowtype, mflowid,
 #endif
 		                                vrf_id, port, 1);
+		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_RLOCK((*inp));
 		SCTP_INP_DECR_REF((*inp));
 		if ((*stcb) == NULL) {
@@ -7044,6 +7072,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			net->flowid = mflowid;
 		}
 #endif
+printf("%s:%d\n", __func__, __LINE__);
 		net = sctp_findnet((*stcb), to);
 		/*
 	 	* This code should in theory NOT run but
@@ -7064,31 +7093,118 @@ printf("%s:%d\n", __func__, __LINE__);
 				send_int_conf = 1;
 			}
 		}
+		printf("%s:%d\n", __func__, __LINE__);
 		sctp_start_net_timers((*stcb));
 		temp_inp = (*inp);
 		SCTP_INP_INCR_REF(temp_inp);
 		SCTP_INP_RUNLOCK(temp_inp);
-
+printf("%s:%d\n", __func__, __LINE__);
 		sctp_fill_inp(m, inp, iphlen, (*stcb), net, src, dst, sh, 0, notification, send_int_conf, vrf_id, port);
 		SCTP_INP_RLOCK(temp_inp);
 		SCTP_INP_DECR_REF(temp_inp);
-	}
-printf("%s:%d\n", __func__, __LINE__);
-printf("alt_data=%p\n", (void *)alt_data);
-	if (alt_data) {
-	printf("%s:%d\n", __func__, __LINE__);
-		uint32_t high_tsn;
-		int off = 4;
-		struct sctp_chunkhdr *chptr = (struct sctp_chunkhdr *)(mtod(alt_data, caddr_t) + off);
-	printf("chptr->type=%d chptr->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
-		printf("go and process data\n");
-		int retval = sctp_process_data(&alt_data, 0, &off,
-					ntohs(chptr->chunk_length) + off,
-					*inp, *stcb, net, &high_tsn);
-		printf("retval=%d\n", retval);
+
+		printf("%s:%d\n", __func__, __LINE__);
+		if ((*stcb)->alt_cookie && SCTP_BUF_LEN((*stcb)->alt_cookie) > 0) {
+			char *calc_cookie = NULL;
+			struct sctp_alt_cookie_param *acp;
+			printf("%s:%d\n", __func__, __LINE__);
+			calc_cookie = sctp_create_alternative_cookie((*inp), dst);
+			acp = (struct sctp_alt_cookie_param *)(mtod((*stcb)->alt_cookie, struct sctp_alt_cookie_param *));
+			cookie_accepted = 1;
+			if (memcmp(acp->cookie, calc_cookie, ntohs(acp->ph.param_length)-sizeof(struct sctp_paramhdr)) != 0) {
+				printf("sctp_send_initiate_ack: Alternative cookies are not the same\n");
+				SCTPDBG(SCTP_DEBUG_OUTPUT2,
+		"sctp_send_initiate_ack: Alternative cookies are not the same\n");
+				cookie_accepted = 0;
+				printf("%s:%d\n", __func__, __LINE__);
+				char *cookie = NULL;
+				op_err = NULL;
+				cookie = sctp_create_alternative_cookie((*inp), dst);
+				op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, (char *)cookie);
+				sctp_send_abort(init_pkt, iphlen, src, dst, sh,
+				                init_chk->init.initiate_tag, op_err,
+#if defined(__FreeBSD__)
+				                mflowtype, mflowid, (*inp)->fibnum,
+#endif
+				                vrf_id, port);
+				printf("%s:%d\n", __func__, __LINE__);
+				sctp_m_freem(m);
+				SCTP_INP_RUNLOCK(temp_inp);
+				printf("%s:%d\n", __func__, __LINE__);
+				return;
+			}
+			printf("Build ALT_COOKIE parameter\n");
+			if (padding_len > 0) {
+				memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
+				chunk_len += padding_len;
+				SCTP_BUF_LEN(m) += padding_len;
+				padding_len = 0;
+			}
+			parameter_len = (uint16_t)sizeof(struct sctp_paramhdr);
+			ph = (struct sctp_paramhdr *)(mtod(m, caddr_t) + chunk_len);
+			ph->param_type = htons(SCTP_ALT_COOKIE);
+			ph->param_length = htons(parameter_len);
+			chunk_len += parameter_len;
+			SCTP_BUF_LEN(m) += parameter_len;
+		}
+
+		printf("%s:%d\n", __func__, __LINE__);
+		printf("alt_data=%p\n", (void *)(*stcb)->alt_data);
+		if ((*stcb)->alt_data && SCTP_BUF_LEN((*stcb)->alt_data) > 0) {
+			printf("%s:%d DATA!!!!!\n", __func__, __LINE__);
+			uint32_t high_tsn;
+			int off = (int) sizeof(struct sctp_paramhdr);
+			struct sctp_chunkhdr *chptr = (struct sctp_chunkhdr *)(mtod((*stcb)->alt_data, caddr_t) + off);
+			printf("chptr->type=%d chptr->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
+			printf("go and process data\n");
+			int retval = sctp_process_data(&(*stcb)->alt_data, 0, &off,
+						ntohs(chptr->chunk_length) + off,
+						*inp, *stcb, net, &high_tsn);
+			printf("retval=%d\n", retval);
+
+			if (retval == 0) {
+				struct sctp_tmit_chunk *chk;
+				if (!TAILQ_EMPTY(&((*stcb)->asoc.control_send_queue))) {
+					chk = TAILQ_FIRST(&((*stcb)->asoc.control_send_queue));
+					if (chk->rec.chunk_id.id == SCTP_SELECTIVE_ACK) {
+						/* cumtsnack in Parameter */
+						if (padding_len > 0) {
+							memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
+							SCTP_BUF_LEN(m) += padding_len;
+							chunk_len += padding_len;
+							padding_len = 0;
+						}
+						struct sctp_alt_sack_param *sack;
+						parameter_len = (uint16_t)sizeof(struct sctp_alt_sack_param);
+						sack = (struct sctp_alt_sack_param *) (mtod(m, caddr_t) + chunk_len);
+						sack->ph.param_type = htons(SCTP_ALT_SACK);
+						sack->ph.param_length = htons(parameter_len);
+						sack->cum_tsn_ack = htonl((*stcb)->asoc.cumulative_tsn);
+						printf("%s:%d\n", __func__, __LINE__);
+						chunk_len += parameter_len;
+						SCTP_BUF_LEN(m) += parameter_len;
+						printf("chunk_len now %d\n", chunk_len);
+						TAILQ_REMOVE(&((*stcb)->asoc.control_send_queue), chk, sctp_next);
+					}
+				}
+			}
+		}
+		initack->ch.chunk_length = htons(chunk_len);
+printf("padding_len=%d\n", padding_len);
+		/*
+		 * We sifa 0 here to NOT set IP_DF if its IPv4, we ignore the return
+		 * here since the timer will drive a retranmission.
+		 */
+		if (padding_len > 0) {
+			if (sctp_add_pad_tombuf(m_last, padding_len) == NULL) {
+				sctp_m_freem(m);
+				return;
+			}
+		}
 	}
 
 printf("%s:%d\n", __func__, __LINE__);
+
 
 	if ((error = sctp_lowlevel_chunk_output((*inp), NULL, NULL, to, m, 0, NULL, 0, 0,
 	                                        0, 0,
@@ -7111,7 +7227,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-	sctp_chunk_output(*inp, *stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
+	printf("%s:%d\n", __func__, __LINE__);
 }
 
 
@@ -8811,7 +8927,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 	 *   any control in the control chunk queue also.
 	 */
 	struct sctp_nets *net, *start_at, *sack_goes_to = NULL, *old_start_at = NULL;
-	struct mbuf *outchain = NULL, *endoutchain = NULL;
+	struct mbuf *outchain, *endoutchain;
 	struct sctp_tmit_chunk *chk, *nchk;
 
 	/* temp arrays for unlinking */

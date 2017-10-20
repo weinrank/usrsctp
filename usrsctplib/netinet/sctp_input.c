@@ -109,6 +109,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		(void *)stcb);
 	if (stcb == NULL) {
 		SCTP_INP_RLOCK(inp);
+		printf("inp %p rlocked\n", (void *)inp);
 	}
 	/* validate length */
 	if (ntohs(cp->ch.chunk_length) < sizeof(struct sctp_init_chunk)) {
@@ -191,6 +192,7 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 	    ((inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) ||
 	     (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_ALLGONE) ||
 	     (!SCTP_IS_LISTENING(inp)))) {
+	     printf("%s:%d\n", __func__, __LINE__);
 		/*
 		 * FIX ME ?? What about TCP model and we have a
 		 * match/restart case? Actually no fix is needed.
@@ -221,6 +223,8 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		sctp_send_shutdown_ack(stcb, NULL);
 		sctp_chunk_output(inp, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 	} else {
+	printf("%s:%d\n", __func__, __LINE__);
+	printf("inp=%p\n", (void *)inp);
 		SCTPDBG(SCTP_DEBUG_INPUT3, "sctp_handle_init: sending INIT-ACK\n");
 		sctp_send_initiate_ack(&inp, &stcb, net, m, iphlen, offset,
 		                       src, dst, sh, cp,
@@ -228,11 +232,15 @@ sctp_handle_init(struct mbuf *m, int iphlen, int offset,
 		                       mflowtype, mflowid,
 #endif
 		                       vrf_id, port);
+		printf("%s:%d\n", __func__, __LINE__);
+		printf("inp=%p\n", (void *)inp);
 	}
  outnow:
 	if (stcb == NULL) {
 		SCTP_INP_RUNLOCK(inp);
-	} else {
+	}
+
+	else {
 		SCTP_TCB_UNLOCK(stcb);
 		SCTP_INP_RUNLOCK(temp);
 	}
@@ -583,28 +591,32 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	uint32_t initack_limit;
 	int nat_friendly = 0;
 	int cookie_accepted = 0;
-
+printf("%s:%d\n", __func__, __LINE__);
 	/* First verify that we have no illegal param's */
 	abort_flag = 0;
 
 	op_err = sctp_arethere_unrecognized_parameters(m,
 						       (offset + sizeof(struct sctp_init_chunk)),
 						       &abort_flag, (struct sctp_chunkhdr *)cp, &nat_friendly);
+	printf("%s:%d\n", __func__, __LINE__);
 	if (abort_flag & ABORT_PROCESSING) {
 		/* Send an abort and notify peer */
 		sctp_abort_an_association(stcb->sctp_ep, stcb, op_err, SCTP_SO_NOT_LOCKED);
 		*abort_no_unlock = 1;
 		return (-1);
-	} else if (abort_flag & ABORT_COOKIE_REQ) {
+	} else if (abort_flag & ABORT_COOKIE_ACCEPTED) {
 		cookie_accepted = 1;
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	asoc = &stcb->asoc;
 	asoc->peer_supports_nat = (uint8_t)nat_friendly;
 	/* process the peer's parameters in the INIT-ACK */
+	printf("%s:%d\n", __func__, __LINE__);
 	retval = sctp_process_init((struct sctp_init_chunk *)cp, stcb);
 	if (retval < 0) {
 		return (retval);
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	initack_limit = offset + ntohs(cp->ch.chunk_length);
 	/* load all addresses */
 	if ((retval = sctp_load_addresses_from_init(stcb, m,
@@ -624,6 +636,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		*abort_no_unlock = 1;
 		return (-1);
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	/* if the peer doesn't support asconf, flush the asconf queue */
 	if (asoc->asconf_supported == 0) {
 		struct sctp_asconf_addr *param, *nparam;
@@ -651,7 +664,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	}
 	stcb->asoc.overall_error_count = 0;
 	net->error_count = 0;
-
+printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * Cancel the INIT timer, We do this first before queueing the
 	 * cookie. We always cancel at the primary to assue that we are
@@ -689,7 +702,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		}
 	}
 #endif
-
+printf("%s:%d\n", __func__, __LINE__);
 	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 0 ||
 	    (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && cookie_accepted == 0)) {
 		retval = sctp_send_cookie_echo(m, offset, stcb, net);
@@ -698,6 +711,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 				uint16_t len;
 
 				len = (uint16_t)(sizeof(struct sctp_error_missing_param) + sizeof(uint16_t));
+				printf("%s:%d\n", __func__, __LINE__);
 				/* We abort with an error of missing mandatory param */
 				op_err = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
 				if (op_err != NULL) {
@@ -724,7 +738,9 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 		return (retval);
 	} else {
 		/* Alternative handshake: go to association open */
+		printf("%s:%d\n", __func__, __LINE__);
 		sctp_move_to_open_active(stcb, net);
+		printf("%s:%d\n", __func__, __LINE__);
 	}
 
 	if (cookie_accepted) {
@@ -1630,14 +1646,17 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 			sctp_ulp_notify(SCTP_NOTIFY_INTERFACE_CONFIRMED,
 			    stcb, 0, (void *)stcb->asoc.primary_destination, SCTP_SO_NOT_LOCKED);
 		}
+		printf("%s:%d\n", __func__, __LINE__);
 		retval = sctp_process_init_ack(m, iphlen, offset, src, dst, sh, cp, stcb,
 		                          net, abort_no_unlock,
 #if defined(__FreeBSD__)
 		                          mflowtype, mflowid,
 #endif
 		                          vrf_id);
+		printf("%s:%d\n", __func__, __LINE__);
 		if (retval < 0) {
 			/* error in parsing parameters */
+			printf("%s:%d\n", __func__, __LINE__);
 			return (-1);
 		} else if (retval != 2) {
 			/* update our state */
@@ -2291,7 +2310,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	so = SCTP_INP_SO(inp);
 #endif
-
+printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * find and validate the INIT chunk in the cookie (peer's info) the
 	 * INIT should start after the cookie-echo header struct (chunk
@@ -2302,6 +2321,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	} else {
 		init_offset = sizeof(struct sctp_state_cookie) + sizeof(struct sctp_paramhdr);
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	init_cp = (struct sctp_init_chunk *)
 	    sctp_m_getptr(m, init_offset, sizeof(struct sctp_init_chunk),
 	    (uint8_t *) & init_buf);
@@ -2315,6 +2335,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 		SCTPDBG(SCTP_DEBUG_INPUT1, "HUH? process_cookie_new: could not find INIT chunk!\n");
 		return (NULL);
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	initack_offset = init_offset + SCTP_SIZE32(ntohs(init_cp->ch.chunk_length));
 	/*
 	 * find and validate the INIT-ACK chunk in the cookie (my info) the
@@ -2343,7 +2364,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * now that we know the INIT/INIT-ACK are in place, create a new TCB
 	 * and popluate
 	 */
-
+printf("%s:%d\n", __func__, __LINE__);
 	/*
 	 * Here we do a trick, we set in NULL for the proc/thread argument. We
 	 * do this since in effect we only use the p argument when
@@ -2362,6 +2383,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	                       (struct proc *)NULL
 #endif
 	                       );
+	printf("%s:%d\n", __func__, __LINE__);
 	if (stcb == NULL) {
 		struct mbuf *op_err;
 
@@ -5008,6 +5030,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 		if (chk_length < sizeof(*ch) ||
 		    (*offset + (int)chk_length) > length) {
 			*offset = length;
+			printf("%s:%d\n", __func__, __LINE__);
 			if (locked_tcb) {
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
@@ -5022,6 +5045,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 		if ((ch->chunk_type == SCTP_INITIATION_ACK) ||
 		    (ch->chunk_type == SCTP_INITIATION)) {
 			/* get an init-ack chunk */
+			printf("%s:%d\n", __func__, __LINE__);
 			ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 								   sizeof(struct sctp_init_ack_chunk), chunk_buf);
 			if (ch == NULL) {
@@ -5029,6 +5053,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
 				}
+				printf("%s:%d\n", __func__, __LINE__);
 				return (NULL);
 			}
 		} else {
@@ -5044,6 +5069,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				 * or other means (e.g. know how to parse mbuf
 				 * chains). Cookies do this already.
 				 */
+				 printf("%s:%d\n", __func__, __LINE__);
 				ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 									   (sizeof(chunk_buf) - 4),
 									   chunk_buf);
@@ -5096,6 +5122,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 		}
 		switch (ch->chunk_type) {
 		case SCTP_INITIATION:
+		printf("%s:%d\n", __func__, __LINE__);
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_INIT\n");
 			/* The INIT chunk must be the only chunk. */
 			if ((num_chunks > 1) ||
@@ -5119,6 +5146,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				*offset = length;
 				return (NULL);
 			}
+			printf("%s:%d inp=%p\n", __func__, __LINE__, (void *)inp);
 			sctp_handle_init(m, iphlen, *offset, src, dst, sh,
 			                 (struct sctp_init_chunk *)ch, inp,
 			                 stcb, *netp, &abort_no_unlock,
@@ -5126,10 +5154,13 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			                 mflowtype, mflowid,
 #endif
 			                 vrf_id, port);
+			printf("%s:%d inp=%p\n", __func__, __LINE__, (void *)inp);
 			*offset = length;
 			if ((!abort_no_unlock) && (locked_tcb)) {
+			printf("%s:%d\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
+			printf("%s:%d\n", __func__, __LINE__);
 			return (NULL);
 			break;
 		case SCTP_PAD_CHUNK:
@@ -5138,6 +5169,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			SCTPDBG(SCTP_DEBUG_INPUT3, "SCTP_INIT-ACK\n");
 			if (inp->sctp_flags & SCTP_PCB_FLAGS_SOCKET_GONE) {
 				/* We are not interested anymore */
+				printf("%s:%d\n", __func__, __LINE__);
 				if ((stcb) && (stcb->asoc.total_output_queue_size)) {
 					;
 				} else {
@@ -5165,14 +5197,18 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				}
 			}
 			/* The INIT-ACK chunk must be the only chunk. */
+
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
 				*offset = length;
 				if (locked_tcb) {
 					SCTP_TCB_UNLOCK(locked_tcb);
 				}
+				printf("%s:%d\n", __func__, __LINE__);
 				return (NULL);
 			}
+printf("%s:%d\n", __func__, __LINE__);
+printf("vor handle_init_ack offset=%d length=%d\n", *offset, length);
 			if ((netp) && (*netp)) {
 				ret = sctp_handle_init_ack(m, iphlen, *offset,
 				                           src, dst, sh,
@@ -5183,6 +5219,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				                           mflowtype, mflowid,
 #endif
 				                           vrf_id);
+				printf("%s:%d\n", __func__, __LINE__);
 			} else {
 				ret = -1;
 			}
@@ -5190,6 +5227,8 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if (abort_no_unlock) {
 				return (NULL);
 			}
+			printf("nach handle_init_ack offset set to %d\n", *offset);
+			printf("%s:%d\n", __func__, __LINE__);
 			/*
 			 * Special case, I must call the output routine to
 			 * get the cookie echoed
@@ -5199,6 +5238,7 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				sctp_chunk_output(stcb->sctp_ep, stcb, SCTP_OUTPUT_FROM_CONTROL_PROC, SCTP_SO_NOT_LOCKED);
 			}
 			if (locked_tcb) {
+			printf("%s:%d\n", __func__, __LINE__);
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
 			return (NULL);
@@ -5935,18 +5975,24 @@ printf("%s:%d\n", __func__, __LINE__);
 	next_chunk:
 	printf("%s:%d\n", __func__, __LINE__);
 		/* get the next chunk */
+		printf("offset=%d, chl_length=%d\n", *offset, chk_length);
 		*offset += SCTP_SIZE32(chk_length);
+		printf("offset=%d length=%d\n", *offset, length);
 		if (*offset >= length) {
 			/* no more data left in the mbuf chain */
+			printf("%s:%d\n", __func__, __LINE__);
 			break;
 		}
 		ch = (struct sctp_chunkhdr *)sctp_m_getptr(m, *offset,
 							   sizeof(struct sctp_chunkhdr), chunk_buf);
+		printf("%s:%d\n", __func__, __LINE__);
 		if (ch == NULL) {
+		printf("%s:%d\n", __func__, __LINE__);
 			if (locked_tcb) {
 				SCTP_TCB_UNLOCK(locked_tcb);
 			}
 			*offset = length;
+			printf("%s:%d\n", __func__, __LINE__);
 			return (NULL);
 		}
 	}			/* while */
@@ -6105,6 +6151,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	} else if (stcb == NULL) {
 		inp_decr = inp;
 	}
+	printf("inp_decr = inp = %p\n", (void *)inp_decr);
 	SCTPDBG(SCTP_DEBUG_INPUT1, "Ok, Common input processing called, m:%p iphlen:%d offset:%d length:%d stcb:%p\n",
 		(void *)m, iphlen, offset, length, (void *)stcb);
 	if (stcb) {
@@ -6139,6 +6186,7 @@ printf("%s:%d\n", __func__, __LINE__);
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */
 		/* sa_ignore NO_NULL_CHK */
+		printf("%s:%d\n", __func__, __LINE__);
 		stcb = sctp_process_control(m, iphlen, &offset, length,
 		                            src, dst, sh, ch,
 		                            inp, stcb, &net, &fwd_tsn_seen,
@@ -6146,6 +6194,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		                            mflowtype, mflowid, fibnum,
 #endif
 		                            vrf_id, port);
+		printf("%s:%d: inp=%p, inp_decr=%p\n", __func__, __LINE__, (void *)inp, (void *)inp_decr);
 		if (stcb) {
 			/* This covers us if the cookie-echo was there
 			 * and it changes our INP.
@@ -6169,6 +6218,7 @@ printf("%s:%d\n", __func__, __LINE__);
 			}
 #endif
 		}
+		printf("%s:%d: inp=%p, inp_decr=%p\n", __func__, __LINE__, (void *)inp, (void *)inp_decr);
 	} else {
 		/*
 		 * no control chunks, so pre-process DATA chunks (these
@@ -6342,15 +6392,10 @@ printf("%s:%d\n", __func__, __LINE__);
 		stcb->asoc.peers_rwnd,
 		TAILQ_EMPTY(&stcb->asoc.control_send_queue),
 		stcb->asoc.total_flight);
-printf("%s:%d\n", __func__, __LINE__);
-	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
-printf("%s:%d\n", __func__, __LINE__);
-printf("unsent=%d\n", un_sent);
-	if (!TAILQ_EMPTY(&stcb->asoc.send_queue)) {
-		printf("chunks in send queue: %d\n", stcb->asoc.send_queue_cnt);
-	}
-	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 	printf("%s:%d\n", __func__, __LINE__);
+	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
+
+	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		cnt_ctrl_ready = stcb->asoc.ctrl_queue_cnt - stcb->asoc.ecn_echo_cnt_onq;
 		printf("cnt_ctrl_ready=%d\n", cnt_ctrl_ready);
 	}
@@ -6370,14 +6415,20 @@ printf("unsent=%d\n", un_sent);
 #endif
  out:
 	if (stcb != NULL) {
+	printf("%s:%d\n", __func__, __LINE__);
 		SCTP_TCB_UNLOCK(stcb);
 	}
+	printf("%s:%d: inp=%p, inp_decr=%p\n", __func__, __LINE__, (void *)inp, (void *)inp_decr);
 	if (inp_decr != NULL) {
+	printf("%s:%d\n", __func__, __LINE__);
 		/* reduce ref-count */
 		SCTP_INP_WLOCK(inp_decr);
+		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_DECR_REF(inp_decr);
+		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_WUNLOCK(inp_decr);
 	}
+	printf("%s:%d\n", __func__, __LINE__);
 	return;
 }
 

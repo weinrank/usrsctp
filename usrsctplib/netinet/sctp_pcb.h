@@ -663,6 +663,8 @@ struct sctp_tcb {
 	uint32_t caller2;
 	uint32_t caller3;
 #endif
+	struct mbuf *alt_cookie;
+	struct mbuf *alt_data;
 };
 
 
