@@ -4882,7 +4882,7 @@ sctp_aloc_assoc(struct sctp_inpcb *inp, struct sockaddr *firstaddr,
 	struct sctpasochead *head;
 	uint16_t rport;
 	int err;
-printf("%s:%d\n", __func__, __LINE__);
+
 	/*
 	 * Assumption made here: Caller has done a
 	 * sctp_findassociation_ep_addr(ep, addr's); to make sure the
@@ -4899,9 +4899,7 @@ printf("%s:%d\n", __func__, __LINE__);
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	SCTP_INP_RLOCK(inp);
-	printf("%s:%d\n", __func__, __LINE__);
 	if ((inp->sctp_flags & SCTP_PCB_FLAGS_IN_TCPPOOL) &&
 	    ((sctp_is_feature_off(inp, SCTP_PCB_FLAGS_PORTREUSE)) ||
 	     (inp->sctp_flags & SCTP_PCB_FLAGS_CONNECTED))) {
@@ -4911,7 +4909,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		 * sctp_aloc_assoc.. or the one-2-many socket. If a peeled
 		 * off, or connected one does this.. its an error.
 		 */
-		 printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 		*error = EINVAL;
@@ -4921,7 +4918,6 @@ printf("%s:%d\n", __func__, __LINE__);
 	    (inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE)) {
 		if ((inp->sctp_flags & SCTP_PCB_FLAGS_WAS_CONNECTED) ||
 		    (inp->sctp_flags & SCTP_PCB_FLAGS_WAS_ABORTED)) {
-		    printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 			*error = EINVAL;
@@ -4970,7 +4966,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		    (sin->sin_addr.s_addr == INADDR_BROADCAST) ||
 		    IN_MULTICAST(ntohl(sin->sin_addr.s_addr))) {
 			/* Invalid address */
-			printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 			*error = EINVAL;
@@ -4990,7 +4985,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		    IN6_IS_ADDR_UNSPECIFIED(&sin6->sin6_addr) ||
 		    IN6_IS_ADDR_MULTICAST(&sin6->sin6_addr)) {
 			/* Invalid address */
-			printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 			*error = EINVAL;
@@ -5009,7 +5003,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		if ((ntohs(sconn->sconn_port) == 0) ||
 		    (sconn->sconn_addr == NULL)) {
 			/* Invalid address */
-			printf("%s:%d\n", __func__, __LINE__);
 			SCTP_INP_RUNLOCK(inp);
 			SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 			*error = EINVAL;
@@ -5021,15 +5014,12 @@ printf("%s:%d\n", __func__, __LINE__);
 #endif
 	default:
 		/* not supported family type */
-		printf("%s:%d\n", __func__, __LINE__);
 		SCTP_INP_RUNLOCK(inp);
 		SCTP_LTRACE_ERR_RET(inp, NULL, NULL, SCTP_FROM_SCTP_PCB, EINVAL);
 		*error = EINVAL;
 		return (NULL);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	SCTP_INP_RUNLOCK(inp);
-	printf("%s:%d\n", __func__, __LINE__);
 	if (inp->sctp_flags & SCTP_PCB_FLAGS_UNBOUND) {
 		/*
 		 * If you have not performed a bind, then we need to do the
@@ -7130,7 +7120,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 	} else {
 		sa = src;
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	peer_supports_idata = 0;
 	peer_supports_ecn = 0;
 	peer_supports_prsctp = 0;
@@ -7616,7 +7605,6 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			   (ptype == SCTP_SUCCESS_REPORT)) {
 			/* don't care */ ;
 		} else if (ptype == SCTP_ALT_COOKIE) {
-			printf("SCTP_ALT_COOKIE\n");
 			if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 				if (plen > sizeof(struct sctp_paramhdr)) {
 					struct sctp_alt_cookie_param *acp, *new;
@@ -7633,15 +7621,12 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 			}
 		} else if (ptype == SCTP_ALT_DATA) {
-			printf("SCTP_ALT_DATA\n");
 			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
 				struct sctp_alt_data_param *adp, *newd;
-				printf("%s:%d\n", __func__, __LINE__);
 				if (plen > sizeof(struct sctp_paramhdr)) {
 					int i;
 					adp = (struct sctp_alt_data_param *)sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
-					printf("%s:%d\n", __func__, __LINE__);
 					stcb->alt_data = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_data_param), 0, M_NOWAIT, 1, MT_DATA);
 					newd = mtod(stcb->alt_data, struct sctp_alt_data_param *);
 					newd->ph.param_type = adp->ph.param_type;
@@ -7650,14 +7635,9 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 						newd->data[i] = adp->data[i];
 					}
 					SCTP_BUF_LEN(stcb->alt_data) = ntohs(adp->ph.param_length);
-				} else {
-					printf("%s:%d parameter too short, no data were sent (plen=%d)\n", __func__, __LINE__, plen);
 				}
-				printf("%s:%d\n", __func__, __LINE__);
 			}
 		} else if (ptype == SCTP_ALT_SACK) {
-			printf("%s:%d\n", __func__, __LINE__);
-			printf("SCTP_ALT_SACK\n");
 			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
 			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
 				struct sctp_alt_sack_param *asp;
@@ -7665,10 +7645,10 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				int abort_flag = 0;
 				asp = (struct sctp_alt_sack_param *)sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
 				cumack = ntohl(asp->cum_tsn_ack);
-				printf("cumack=%u\n", cumack);
 				arwnd = stcb->asoc.peers_rwnd + stcb->asoc.total_flight;
 				/* Now call the express sack handling */
 				sctp_express_handle_sack(stcb, cumack, arwnd, &abort_flag, 0);
+				stcb->alt_data_acked = 1;
 			}
 		} else {
 			if ((ptype & 0x8000) == 0x0000) {

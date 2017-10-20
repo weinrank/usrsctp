@@ -665,6 +665,8 @@ struct sctp_tcb {
 #endif
 	struct mbuf *alt_cookie;
 	struct mbuf *alt_data;
+	int alt_data_sent;
+	int alt_data_acked;
 };
 
 

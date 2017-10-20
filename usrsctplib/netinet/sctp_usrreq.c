@@ -259,9 +259,7 @@ sctp_pathmtu_adjustment(struct sctp_tcb *stcb, uint16_t nxtsz)
 	if (sctp_auth_is_required_chunk(SCTP_DATA, stcb->asoc.peer_auth_chunks)) {
 		overhead += sctp_get_auth_chunk_len(stcb->asoc.peer_hmac_id);
 	}
-	printf("%s:%d\n", __func__, __LINE__);
 	TAILQ_FOREACH(chk, &stcb->asoc.send_queue, sctp_next) {
-	printf("%s:%d\n", __func__, __LINE__);
 		if ((chk->send_size + overhead) > nxtsz) {
 			chk->flags |= CHUNK_FLAGS_FRAGMENT_OK;
 		}

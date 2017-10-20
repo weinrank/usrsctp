@@ -694,12 +694,9 @@ sctp_mark_all_for_resend(struct sctp_tcb *stcb,
 				atomic_add_int(&alt->ref_count, 1);
 			} else {
 				chk->no_fr_allowed = 0;
-				printf("%s:%d\n", __func__, __LINE__);
 				if (TAILQ_EMPTY(&stcb->asoc.send_queue)) {
-				printf("%s:%d\n", __func__, __LINE__);
 					chk->rec.data.fast_retran_tsn = stcb->asoc.sending_seq;
 				} else {
-				printf("%s:%d\n", __func__, __LINE__);
 					chk->rec.data.fast_retran_tsn = (TAILQ_FIRST(&stcb->asoc.send_queue))->rec.data.tsn;
 				}
 			}
@@ -1361,7 +1358,6 @@ sctp_audit_stream_queues_for_size(struct sctp_inpcb *inp,
 			SCTP_PRINTF("Found additional streams NOT managed by scheduler, corrected\n");
 		} else {
 			/* no streams lost */
-			printf("%s:%d\n", __func__, __LINE__);
 			stcb->asoc.total_output_queue_size = 0;
 		}
 	}

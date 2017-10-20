@@ -82,7 +82,7 @@ main(int argc, char *argv[])
 	usrsctp_sysctl_set_sctp_alternative_handshake(1);
 
 #ifdef SCTP_DEBUG
-	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
+	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_NONE);
 #endif
 	//usrsctp_sysctl_set_sctp_blackhole(2);
 
