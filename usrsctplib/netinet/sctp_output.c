@@ -6306,89 +6306,6 @@ printf("%s:%d\n", __func__, __LINE__);
 		}
 	}
 	printf("%s:%d\n", __func__, __LINE__);
-	if (abort_flag & ABORT_NO_ABORT) {
-
-		if (op_err) {
-			//struct sctp_paramhdr *phr = mtod(op_err, struct sctp_paramhdr *);
-			//int off = 0;
-			printf("%s:%d\n", __func__, __LINE__);
-			printf("Length op_err=%d\n", SCTP_BUF_LEN(op_err));
-#if 0
-			if (ntohs(phr->param_type) == SCTP_ALT_COOKIE) {
-			printf("SCTP_ALT_COOKIE parameter\n");
-				char *calc_cookie = NULL;
-				struct sctp_alt_cookie_param *acp;
-				printf("%s:%d\n", __func__, __LINE__);
-				calc_cookie = sctp_create_alternative_cookie((*inp), dst);
-				acp = (struct sctp_alt_cookie_param *)(mtod(op_err, struct sctp_alt_cookie_param *));
-				cookie_accepted = 1;
-
-				if (memcmp(acp->cookie, calc_cookie, ntohs(phr->param_length)-sizeof(struct sctp_paramhdr)) != 0) {
-					printf("sctp_send_initiate_ack: Alternative cookies are not the same\n");
-					SCTPDBG(SCTP_DEBUG_OUTPUT2,
-		"sctp_send_initiate_ack: Alternative cookies are not the same\n");
-					cookie_accepted = 0;
-					op_err = NULL;
-					printf("%s:%d\n", __func__, __LINE__);
-					char *cookie = NULL;
-					cookie = sctp_create_alternative_cookie((*inp), dst);
-					op_err = sctp_generate_cause(SCTP_ALT_COOKIE_REQUIRED, (char *)cookie);
-					sctp_send_abort(init_pkt, iphlen, src, dst, sh,
-					                init_chk->init.initiate_tag, load,
-#if defined(__FreeBSD__)
-					                mflowtype, mflowid, (*inp)->fibnum,
-#endif
-					                vrf_id, port);
-					return;
-				}
-				SCTP_BUF_LEN(op_err) -= ntohs(phr->param_length);
-				off = ntohs(phr->param_length);
-			}
-#endif
-#if 0
-			if (abort_flag & ABORT_DATA_SENT) {
-				printf("Parameter with DATA was sent. Now handle it and send a SACK\n");
-				struct sctp_alt_data_param *adp;
-				int l = SCTP_BUF_LEN(op_err);
-				//int retval = 0;
-				printf("Length op_err=%d\n", SCTP_BUF_LEN(op_err));
-				//op_err = SCTP_BUF_NEXT(op_err);
-				SCTP_BUF_LEN(op_err) = l;
-				printf("%s:%d\n", __func__, __LINE__);
-				adp = (struct sctp_alt_data_param *)(mtod(op_err, struct sctp_alt_data_param *));
-				printf("%s:%d\n", __func__, __LINE__);
-				printf("Param type = %d\n", ntohs(adp->ph.param_type));
-				if (ntohs(adp->ph.param_type) == SCTP_ALT_DATA) {
-					int len = ntohs(adp->ph.param_length) - sizeof(struct sctp_paramhdr);
-					printf("%s:%d\n", __func__, __LINE__);
-					printf("length data chunks = %d\n", len);
-					alt_data = sctp_get_mbuf_for_msg(len, 0, M_NOWAIT, 1, MT_DATA);
-					/*alt_data = op_err;*/
-					struct sctp_chunkhdr *chptr = (struct sctp_chunkhdr *)(mtod(op_err, caddr_t) + 4);
-	printf("op_err->type = %d op_err->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
-					caddr_t *from, *tom;
-					printf("%s:%d\n", __func__, __LINE__);
-					/* get the pointers and copy */
-					tom = mtod(alt_data, caddr_t *);
-					printf("%s:%d\n", __func__, __LINE__);
-					from = mtod(op_err, caddr_t *);
-					printf("%s:%d\n", __func__, __LINE__);
-					printf("SCTP_BUF_LEN(op_err)=%d\n", SCTP_BUF_LEN(op_err));
-					memcpy(tom, from, SCTP_BUF_LEN(op_err));
-					/* copy the length and free up the old */
-					SCTP_BUF_LEN(alt_data) = SCTP_BUF_LEN(op_err);
-					chptr = (struct sctp_chunkhdr *)(mtod(alt_data, caddr_t) + 4);
-	printf("type=%d alt_chptr->length=%d\n", chptr->chunk_type, ntohs(chptr->chunk_length));
-				}
-			}
-			if (cookie_accepted == 1) {
-				printf("%s:%d\n", __func__, __LINE__);
-				op_err = NULL;
-				printf("alt_data=%p\n", (void *)alt_data);
-			}
-#endif
-		}
-	}
 	printf("%s:%d\n", __func__, __LINE__);
 	m = sctp_get_mbuf_for_msg(MCLBYTES, 0, M_NOWAIT, 1, MT_DATA);
 	if (m == NULL) {
@@ -7133,6 +7050,8 @@ printf("%s:%d\n", __func__, __LINE__);
 				printf("%s:%d\n", __func__, __LINE__);
 				return;
 			}
+		}
+		if (cookie_accepted) {
 			printf("Build ALT_COOKIE parameter\n");
 			if (padding_len > 0) {
 				memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);

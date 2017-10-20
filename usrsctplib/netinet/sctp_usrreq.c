@@ -2167,6 +2167,7 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 	case SCTP_DISABLE_FRAGMENTS:
 	case SCTP_I_WANT_MAPPED_V4_ADDR:
 	case SCTP_EMPTY_ALT_COOKIE:
+	case SCTP_INIT_ALT_DATA:
 	case SCTP_USE_EXT_RCVINFO:
 		SCTP_INP_RLOCK(inp);
 		switch (optname) {
@@ -2194,6 +2195,9 @@ sctp_getopt(struct socket *so, int optname, void *optval, size_t *optsize,
 			break;
 		case SCTP_EMPTY_ALT_COOKIE:
 			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EMPTYALTCOOKIE);
+			break;
+		case SCTP_INIT_ALT_DATA:
+			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA);
 			break;
 		case SCTP_USE_EXT_RCVINFO:
 			val = sctp_is_feature_on(inp, SCTP_PCB_FLAGS_EXT_RCVINFO);
@@ -4447,7 +4451,8 @@ static int
 sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	    void *p)
 {
-	int error, set_opt;
+	int error;
+	uint64_t set_opt;
 	uint32_t *mopt;
 	struct sctp_tcb *stcb = NULL;
 	struct sctp_inpcb *inp = NULL;
@@ -4475,6 +4480,7 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 	case SCTP_DISABLE_FRAGMENTS:
 	case SCTP_USE_EXT_RCVINFO:
 	case SCTP_EMPTY_ALT_COOKIE:
+	case SCTP_INIT_ALT_DATA:
 	case SCTP_I_WANT_MAPPED_V4_ADDR:
 		/* copy in the option value */
 		SCTP_CHECK_AND_CAST(mopt, optval, uint32_t, optsize);
@@ -4522,6 +4528,9 @@ sctp_setopt(struct socket *so, int optname, void *optval, size_t optsize,
 			break;
 		case SCTP_EMPTY_ALT_COOKIE:
 			set_opt = SCTP_PCB_FLAGS_EMPTYALTCOOKIE;
+			break;
+		case SCTP_INIT_ALT_DATA:
+			set_opt = SCTP_PCB_FLAGS_INITALTDATA;
 			break;
 		case SCTP_AUTOCLOSE:
 			if ((inp->sctp_flags & SCTP_PCB_FLAGS_TCPTYPE) ||

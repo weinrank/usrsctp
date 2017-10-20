@@ -542,6 +542,7 @@ struct sctp_event_subscribe {
 #define SCTP_REMOTE_UDP_ENCAPS_PORT     0x00000024
 
 #define SCTP_EMPTY_ALT_COOKIE			0x00000033
+#define SCTP_INIT_ALT_DATA			0x00000034
 
 #define SCTP_ENABLE_STREAM_RESET        0x00000900 /* struct sctp_assoc_value */
 

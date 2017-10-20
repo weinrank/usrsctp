@@ -112,7 +112,7 @@ main(int argc, char *argv[])
 
 	seconds = 0.0;
 
-	for (loop_count = 0; loop_count < 1; loop_count++) {
+	for (loop_count = 0; loop_count < 10; loop_count++) {
 		if ((sock = usrsctp_socket(AF_INET6, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL)) == NULL) {
 			perror("usrsctp_socket");
 			result = 1;
