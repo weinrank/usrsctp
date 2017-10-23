@@ -5230,7 +5230,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 
 			}
 			stcb->alt_data_sent = 1;
-			stcb->alt_data_acked = 1;
+			stcb->alt_data_acked = 0;
 			parameter_len += datasize;
 			adp->ph.param_length = htons(parameter_len);
 			chunk_len += parameter_len;

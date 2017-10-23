@@ -722,6 +722,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 				struct sctp_tmit_chunk *chk;
 				TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
 					if (chk->sent == SCTP_DATAGRAM_INIT_SENT) {
+						SCTPDBG(SCTP_DEBUG_INPUT1, "Server does not support ALT_DATA in INIT\n");
 						chk->sent = SCTP_DATAGRAM_UNSENT;
 						TAILQ_REMOVE(&stcb->asoc.sent_queue, chk, sctp_next);
 						TAILQ_INSERT_HEAD(&stcb->asoc.send_queue, chk, sctp_next);
