@@ -1701,7 +1701,6 @@ sctp_process_a_data_chunk(struct sctp_tcb *stcb, struct sctp_association *asoc,
 		fsn = tsn;
 		ppid = chunk->dp.ppid;
 	}
-
 	if ((size_t)chk_length == clen) {
 		/*
 		 * Need to send an abort since we had a
@@ -2580,6 +2579,7 @@ sctp_sack_check(struct sctp_tcb *stcb, int was_a_gap)
 		    (stcb->asoc.delayed_ack == 0) ||    /* Delayed sack disabled */
 		    (stcb->asoc.data_pkts_seen >= stcb->asoc.sack_freq)	/* hit limit of pkts */
 			) {
+
 			if ((stcb->asoc.sctp_cmt_on_off > 0) &&
 			    (SCTP_BASE_SYSCTL(sctp_cmt_use_dac)) &&
 			    (stcb->asoc.send_sack == 0) &&
@@ -2652,6 +2652,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 	 * chunk is assigned.
 	 */
 	asoc->last_data_chunk_from = net;
+
 #ifndef __Panda__
 	/*-
 	 * Now before we proceed we must figure out if this is a wasted
@@ -2724,6 +2725,7 @@ sctp_process_data(struct mbuf **mm, int iphlen, int *offset, int length,
 			sctp_abort_an_association(inp, stcb, op_err, SCTP_SO_NOT_LOCKED);
 			return (2);
 		}
+
 		if ((ch->chunk_type == SCTP_DATA) ||
 		    (ch->chunk_type == SCTP_IDATA)) {
 			int clen;
@@ -3903,6 +3905,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		}
 		return;
 	}
+
 	/* First setup for CC stuff */
 	TAILQ_FOREACH(net, &asoc->nets, sctp_next) {
 		if (SCTP_TSN_GT(cumack, net->cwr_window_tsn)) {
@@ -3990,6 +3993,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 						 */
 						tp1->whoTo->net_ack2 +=
 							tp1->send_size;
+
 						/* update RTO too? */
 						if (tp1->do_rtt) {
 							if (rto_ok) {
@@ -4026,6 +4030,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 					tp1->whoTo->new_pseudo_cumack = 1;
 					tp1->whoTo->find_pseudo_cumack = 1;
 					tp1->whoTo->find_rtx_pseudo_cumack = 1;
+
 					if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_CWND_LOGGING_ENABLE) {
 						/* sa_ignore NO_NULL_CHK */
 						sctp_log_cwnd(stcb, tp1->whoTo, tp1->rec.data.tsn, SCTP_CWND_LOG_FROM_SACK);
@@ -4196,6 +4201,7 @@ sctp_express_handle_sack(struct sctp_tcb *stcb, uint32_t cumack,
 		asoc->total_flight = 0;
 		asoc->total_flight_count = 0;
 	}
+
 	/* RWND update */
 	asoc->peers_rwnd = sctp_sbspace_sub(rwnd,
 					    (uint32_t) (asoc->total_flight + (asoc->total_flight_count * SCTP_BASE_SYSCTL(sctp_peer_chunk_oh))));
@@ -4300,6 +4306,7 @@ again:
 		if ((asoc->state & SCTP_STATE_SHUTDOWN_PENDING) &&
 		    (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
+
 			if ((SCTP_GET_STATE(asoc) == SCTP_STATE_OPEN) ||
 			    (SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED)) {
 				SCTP_STAT_DECR_GAUGE32(sctps_currestab);
@@ -4320,6 +4327,7 @@ again:
 		} else if ((SCTP_GET_STATE(asoc) == SCTP_STATE_SHUTDOWN_RECEIVED) &&
 			   (asoc->stream_queue_cnt == 0)) {
 			struct sctp_nets *netp;
+
 			SCTP_STAT_DECR_GAUGE32(sctps_currestab);
 			SCTP_SET_STATE(asoc, SCTP_STATE_SHUTDOWN_ACK_SENT);
 			SCTP_CLEAR_SUBSTATE(asoc, SCTP_STATE_SHUTDOWN_PENDING);
@@ -4441,6 +4449,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		sctp_misc_ints(SCTP_SACK_LOG_NORMAL, cum_ack,
 		               rwnd, stcb->asoc.last_acked_seq, stcb->asoc.peers_rwnd);
 	}
+
 	old_rwnd = stcb->asoc.peers_rwnd;
 	if (SCTP_BASE_SYSCTL(sctp_logging_level) & SCTP_THRESHOLD_LOGGING) {
 		sctp_misc_ints(SCTP_THRESHOLD_CLEAR,
@@ -4512,6 +4521,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 		/* acking something behind */
 		return;
 	}
+
 	/* update the Rwnd of the peer */
 	if (TAILQ_EMPTY(&asoc->sent_queue) &&
 	    TAILQ_EMPTY(&asoc->send_queue) &&
@@ -4689,6 +4699,7 @@ sctp_handle_sack(struct mbuf *m, int offset_seg, int offset_dup,
 	biggest_tsn_newly_acked = biggest_tsn_acked = last_tsn;
 	/* always set this up to cum-ack */
 	asoc->this_sack_highest_gap = last_tsn;
+
 	if ((num_seg > 0) || (num_nr_seg > 0)) {
 
 		/*

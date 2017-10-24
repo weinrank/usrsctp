@@ -489,8 +489,8 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 		SCTP_STAT_INCR_GAUGE32(sctps_currestab);
 		if (asoc->overall_error_count == 0) {
 			net->RTO = sctp_calculate_rto(stcb, asoc, net,
-					             &asoc->time_entered, sctp_align_safe_nocopy,
-						      SCTP_RTT_FROM_NON_DATA);
+			                              &asoc->time_entered, sctp_align_safe_nocopy,
+			                              SCTP_RTT_FROM_NON_DATA);
 		}
 		(void)SCTP_GETTIME_TIMEVAL(&asoc->time_entered);
 		sctp_ulp_notify(SCTP_NOTIFY_ASSOC_UP, stcb, 0, NULL, SCTP_SO_NOT_LOCKED);
@@ -528,7 +528,7 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 
 
 			if (stcb->asoc.sctp_autoclose_ticks &&
-		     sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTOCLOSE)) {
+			    sctp_is_feature_on(stcb->sctp_ep, SCTP_PCB_FLAGS_AUTOCLOSE)) {
 				sctp_timer_start(SCTP_TIMER_TYPE_AUTOCLOSE,
 				    stcb->sctp_ep, stcb, NULL);
 			}
@@ -542,11 +542,11 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 			    (!TAILQ_EMPTY(&stcb->asoc.asconf_queue))) {
 #ifdef SCTP_TIMER_BASED_ASCONF
 				sctp_timer_start(SCTP_TIMER_TYPE_ASCONF,
-						 stcb->sctp_ep, stcb,
-						 stcb->asoc.primary_destination);
+				                 stcb->sctp_ep, stcb,
+				                 stcb->asoc.primary_destination);
 #else
 				sctp_send_asconf(stcb, stcb->asoc.primary_destination,
-						 SCTP_ADDR_NOT_LOCKED);
+				                 SCTP_ADDR_NOT_LOCKED);
 #endif
 			}
 		}
@@ -648,6 +648,7 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 	}
 	stcb->asoc.overall_error_count = 0;
 	net->error_count = 0;
+
 	/*
 	 * Cancel the INIT timer, We do this first before queueing the
 	 * cookie. We always cancel at the primary to assue that we are
@@ -1108,7 +1109,6 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 		"sctp_handle_shutdown: handling SHUTDOWN\n");
 	if (stcb == NULL)
 		return;
-
 	asoc = &stcb->asoc;
 	if ((SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_WAIT) ||
 	    (SCTP_GET_STATE(asoc) == SCTP_STATE_COOKIE_ECHOED)) {
@@ -1196,6 +1196,7 @@ sctp_handle_shutdown(struct sctp_shutdown_chunk *cp,
 	}
 	/* Now is there unsent data on a stream somewhere? */
 	some_on_streamwheel = sctp_is_there_unsent_data(stcb, SCTP_SO_NOT_LOCKED);
+
 	if (!TAILQ_EMPTY(&asoc->send_queue) ||
 	    !TAILQ_EMPTY(&asoc->sent_queue) ||
 	    some_on_streamwheel) {
@@ -1696,7 +1697,6 @@ sctp_handle_init_ack(struct mbuf *m, int iphlen, int offset,
 		break;
 	}
 	SCTPDBG(SCTP_DEBUG_INPUT1, "Leaving handle-init-ack end\n");
-	//return (0);
 	return (retval);
 }
 
@@ -2304,6 +2304,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 
 	so = SCTP_INP_SO(inp);
 #endif
+
 	/*
 	 * find and validate the INIT chunk in the cookie (peer's info) the
 	 * INIT should start after the cookie-echo header struct (chunk
@@ -2355,6 +2356,7 @@ sctp_process_cookie_new(struct mbuf *m, int iphlen, int offset,
 	 * now that we know the INIT/INIT-ACK are in place, create a new TCB
 	 * and popluate
 	 */
+
 	/*
 	 * Here we do a trick, we set in NULL for the proc/thread argument. We
 	 * do this since in effect we only use the p argument when
@@ -3273,7 +3275,6 @@ sctp_handle_cookie_ack(struct sctp_cookie_ack_chunk *cp SCTP_UNUSED,
 
 	SCTPDBG(SCTP_DEBUG_INPUT2,
 		"sctp_handle_cookie_ack: handling COOKIE-ACK\n");
-
 	if ((stcb == NULL) || (net == NULL)) {
 		return;
 	}
@@ -3820,7 +3821,6 @@ sctp_find_stream_reset(struct sctp_tcb *stcb, uint32_t seq, struct sctp_tmit_chu
 	int len, clen;
 
 	asoc = &stcb->asoc;
-
 	if (TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		asoc->stream_reset_outstanding = 0;
 		return (NULL);
@@ -5174,7 +5174,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				}
 			}
 			/* The INIT-ACK chunk must be the only chunk. */
-
 			if ((num_chunks > 1) ||
 			    (length - *offset > (int)SCTP_SIZE32(chk_length))) {
 				*offset = length;
@@ -5183,7 +5182,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 				}
 				return (NULL);
 			}
-
 			if ((netp) && (*netp)) {
 				ret = sctp_handle_init_ack(m, iphlen, *offset,
 				                           src, dst, sh,
@@ -5201,7 +5199,6 @@ sctp_process_control(struct mbuf *m, int iphlen, int *offset, int length,
 			if (abort_no_unlock) {
 				return (NULL);
 			}
-
 			/*
 			 * Special case, I must call the output routine to
 			 * get the cookie echoed
@@ -6343,7 +6340,6 @@ trigger_send:
 		TAILQ_EMPTY(&stcb->asoc.control_send_queue),
 		stcb->asoc.total_flight);
 	un_sent = (stcb->asoc.total_output_queue_size - stcb->asoc.total_flight);
-
 	if (!TAILQ_EMPTY(&stcb->asoc.control_send_queue)) {
 		cnt_ctrl_ready = stcb->asoc.ctrl_queue_cnt - stcb->asoc.ecn_echo_cnt_onq;
 	}
