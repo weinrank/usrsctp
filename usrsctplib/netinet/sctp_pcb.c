@@ -49,6 +49,7 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_pcb.c 323902 2017-09-22 06:07:47Z tuex
 #include <netinet/sctp_output.h>
 #include <netinet/sctp_timer.h>
 #include <netinet/sctp_bsd_addr.h>
+#include <netinet/sctp_indata.h>
 #if defined(__FreeBSD__) && __FreeBSD_version >= 1000000
 #include <netinet/sctp_dtrace_define.h>
 #endif
@@ -7603,6 +7604,52 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 			   (ptype == SCTP_ERROR_CAUSE_IND) ||
 			   (ptype == SCTP_SUCCESS_REPORT)) {
 			/* don't care */ ;
+		} else if (ptype == SCTP_ALT_COOKIE) {
+			if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+				if (plen > sizeof(struct sctp_paramhdr)) {
+					struct sctp_alt_cookie_param *acp, *new;
+					int i;
+					acp = (struct sctp_alt_cookie_param *)sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
+					stcb->alt_cookie = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_cookie_param), 0, M_NOWAIT, 1, MT_DATA);
+					new = (struct sctp_alt_cookie_param *)(mtod(stcb->alt_cookie, caddr_t));
+					new->ph.param_type = acp->ph.param_type;
+					new->ph.param_length = acp->ph.param_length;
+					for (i = 0; i < (int)(plen - sizeof(struct sctp_paramhdr)); i++) {
+						new->cookie[i] = acp->cookie[i];
+					}
+					SCTP_BUF_LEN(stcb->alt_cookie) = ntohs(acp->ph.param_length);
+				}
+			}
+		} else if (ptype == SCTP_ALT_DATA) {
+			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
+			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
+				struct sctp_alt_data_param *adp, *newd;
+				if (plen > sizeof(struct sctp_paramhdr)) {
+					int i;
+					adp = (struct sctp_alt_data_param *)sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
+					stcb->alt_data = sctp_get_mbuf_for_msg(sizeof(struct sctp_alt_data_param), 0, M_NOWAIT, 1, MT_DATA);
+					newd = mtod(stcb->alt_data, struct sctp_alt_data_param *);
+					newd->ph.param_type = adp->ph.param_type;
+					newd->ph.param_length = adp->ph.param_length;
+					for (i = 0; i < (int)(plen - sizeof(struct sctp_paramhdr)); i++) {
+						newd->data[i] = adp->data[i];
+					}
+					SCTP_BUF_LEN(stcb->alt_data) = ntohs(adp->ph.param_length);
+				}
+			}
+		} else if (ptype == SCTP_ALT_SACK) {
+			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
+			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
+				struct sctp_alt_sack_param *asp;
+				uint32_t cumack, arwnd;
+				int abort_flag = 0;
+				asp = (struct sctp_alt_sack_param *)sctp_get_next_param(m, offset, &param_buf, sizeof(param_buf));
+				cumack = ntohl(asp->cum_tsn_ack);
+				arwnd = stcb->asoc.peers_rwnd + stcb->asoc.total_flight;
+				/* Now call the express sack handling */
+				sctp_express_handle_sack(stcb, cumack, arwnd, &abort_flag, 0);
+				stcb->alt_data_acked = 1;
+			}
 		} else {
 			if ((ptype & 0x8000) == 0x0000) {
 				/*

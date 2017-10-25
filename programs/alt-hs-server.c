@@ -94,6 +94,10 @@ main(int argc, char *argv[])
 	if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_EMPTY_ALT_COOKIE, &optval, sizeof(int)) < 0) {
 		perror("setsockopt: SCTP_EMPTY_ALT_COOKIE");
 	}
+	optval = 1;
+	if (usrsctp_setsockopt(sock, IPPROTO_SCTP, SCTP_INIT_ALT_DATA, &optval, sizeof(int)) < 0) {
+		perror("setsockopt: SCTP_INIT_ALT_DATA");
+	}
 
 	memset(&encaps, 0, sizeof(struct sctp_udpencaps));
 	encaps.sue_address.ss_family 	= AF_INET6;
