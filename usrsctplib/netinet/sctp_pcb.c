@@ -6908,6 +6908,7 @@ retry:
 #endif
 	TAILQ_FOREACH_SAFE(cookie, &SCTP_BASE_INFO(cookielist), sctp_next_cookie, ncookie) {
 		TAILQ_REMOVE(&SCTP_BASE_INFO(cookielist), cookie, sctp_next_cookie);
+		SCTP_FREE(cookie, SCTP_M_ALT_COOKIE);
 	}
 
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
