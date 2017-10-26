@@ -7638,8 +7638,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 			}
 		} else if (ptype == SCTP_ALT_SACK) {
-			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
-			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
+			if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 				struct sctp_alt_sack_param *asp;
 				uint32_t cumack, arwnd;
 				int abort_flag = 0;

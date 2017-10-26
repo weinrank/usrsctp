@@ -6857,7 +6857,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 				send_int_conf = 1;
 			}
 		}
-		sctp_start_net_timers((*stcb));
 		temp_inp = (*inp);
 		SCTP_INP_INCR_REF(temp_inp);
 		SCTP_INP_RUNLOCK(temp_inp);
@@ -6951,8 +6950,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		}
 	}
 
-
-
 	if ((error = sctp_lowlevel_chunk_output((*inp), NULL, NULL, to, m, 0, NULL, 0, 0,
 	                                        0, 0,
 	                                        (*inp)->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
@@ -6974,6 +6971,9 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		}
 	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+		sctp_start_net_timers((*stcb));
+	}
 }
 
 

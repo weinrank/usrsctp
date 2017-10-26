@@ -478,7 +478,7 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 		/* state change only needed when I am in the right state */
 		SCTPDBG(SCTP_DEBUG_INPUT2, "moving to OPEN state\n");
 		SCTP_SET_STATE(asoc, SCTP_STATE_OPEN);
-		sctp_start_net_timers(stcb);
+		//sctp_start_net_timers(stcb);
 		if (asoc->state & SCTP_STATE_SHUTDOWN_PENDING) {
 			sctp_timer_start(SCTP_TIMER_TYPE_SHUTDOWNGUARD,
 					 stcb->sctp_ep, stcb, asoc->primary_destination);
@@ -558,6 +558,7 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 			chk = TAILQ_FIRST(&asoc->sent_queue);
 			sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, chk->whoTo);
 		}
+		sctp_start_net_timers(stcb);
 	}
 }
 
@@ -717,35 +718,26 @@ sctp_process_init_ack(struct mbuf *m, int iphlen, int offset,
 			}
 			return (retval);
 		}
-		if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
-			if (stcb->alt_data_sent == 1 && stcb->alt_data_acked == 0) {
-				/* Set status of Data chunk to unsent */
-				struct sctp_tmit_chunk *chk;
-				TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
-					if (chk->sent == SCTP_DATAGRAM_INIT_SENT) {
+	}
+
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+		if (stcb->alt_data_sent == 1) {
+			struct sctp_tmit_chunk *chk;
+			TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
+				if (chk->sent == SCTP_DATAGRAM_INIT_SENT) {
+					if (stcb->alt_data_acked == 0) {
+						/* Set status of Data chunk to unsent */
 						SCTPDBG(SCTP_DEBUG_INPUT1, "Server does not support ALT_DATA in INIT\n");
 						chk->sent = SCTP_DATAGRAM_UNSENT;
 						TAILQ_REMOVE(&stcb->asoc.sent_queue, chk, sctp_next);
 						TAILQ_INSERT_HEAD(&stcb->asoc.send_queue, chk, sctp_next);
 						stcb->asoc.sent_queue_cnt--;
 						stcb->asoc.send_queue_cnt++;
+					} else {
+						/* Should have been removed by the SACK handling. Just in case ...*/
+						TAILQ_REMOVE(&stcb->asoc.sent_queue, chk, sctp_next);
+						stcb->asoc.sent_queue_cnt--;
 					}
-				}
-			}
-		}
-		return (retval);
-	} else {
-		/* Alternative handshake: go to association open */
-		if (stcb->alt_data_sent == 1 && stcb->alt_data_acked == 0) {
-			/* Set status of Data chunk to unsent */
-			struct sctp_tmit_chunk *chk;
-			TAILQ_FOREACH(chk, &stcb->asoc.sent_queue, sctp_next) {
-				if (chk->sent == SCTP_DATAGRAM_INIT_SENT) {
-					chk->sent = SCTP_DATAGRAM_UNSENT;
-					TAILQ_REMOVE(&stcb->asoc.sent_queue, chk, sctp_next);
-					TAILQ_INSERT_HEAD(&stcb->asoc.send_queue, chk, sctp_next);
-					stcb->asoc.sent_queue_cnt--;
-					stcb->asoc.send_queue_cnt++;
 				}
 			}
 		}
@@ -3130,7 +3122,7 @@ sctp_fill_inp(struct mbuf *m, struct sctp_inpcb **inp, int iphlen,
 #endif
 				                       vrf_id, port);
 #if defined(__APPLE__) || defined(SCTP_SO_LOCK_TESTING)
-				pcb_so = SCTP_INP_SO(inp);
+				pcb_so = SCTP_INP_SO((*inp));
 				atomic_add_int(&stcb->asoc.refcnt, 1);
 				SCTP_TCB_UNLOCK(stcb);
 				SCTP_SOCKET_LOCK(pcb_so, 1);
