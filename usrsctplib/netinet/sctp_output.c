@@ -5161,10 +5161,20 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 			if (!(TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist)))) {
 				cookie_info = find_cookie(&net->ro._l_addr, stcb->rport);
 				if (cookie_info != NULL) {
-					cookie = (struct sctp_alt_cookie_param *)calloc(1, sizeof(struct sctp_alt_cookie_param) + cookie_info->cookie_len);
-					cookie->ph.param_length = htons(cookie_info->cookie_len + 4);
+					parameter_len += cookie_info->cookie_len;
+					struct sctp_alt_cookie_param *acp;
+					acp = (struct sctp_alt_cookie_param *)(mtod(m, caddr_t) + chunk_len);
+					acp->ph.param_type = htons(SCTP_ALT_COOKIE);
+					acp->ph.param_length = htons(parameter_len);
 					for (i = 0; i < cookie_info->cookie_len; i++) {
-						cookie->cookie[i] = cookie_info->cookie[i];
+						acp->cookie[i] = (uint8_t)cookie_info->cookie[i];
+					}
+					chunk_len += parameter_len;
+					padding_len = SCTP_SIZE32(parameter_len) - parameter_len;
+					if (padding_len > 0) {
+						memset(mtod(m, caddr_t) + chunk_len, 0, padding_len);
+						chunk_len += padding_len;
+						padding_len = 0;
 					}
 				}
 			} else {
@@ -5411,7 +5421,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 		chunk_len += parameter_len;
 	}
 
-	SCTP_BUF_LEN(m) = chunk_len;
 	/* now the addresses */
 	/* To optimize this we could put the scoping stuff
 	 * into a structure and remove the individual uint8's from
@@ -5423,6 +5432,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 	                                    m, cnt_inits_to,
 	                                    &padding_len, &chunk_len);
 
+	SCTP_BUF_LEN(m) = chunk_len;
 	init->ch.chunk_length = htons(chunk_len);
 	if (padding_len > 0) {
 		if (sctp_add_pad_tombuf(m_last, padding_len) == NULL) {
@@ -6857,7 +6867,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 				send_int_conf = 1;
 			}
 		}
-		sctp_start_net_timers((*stcb));
 		temp_inp = (*inp);
 		SCTP_INP_INCR_REF(temp_inp);
 		SCTP_INP_RUNLOCK(temp_inp);
@@ -6951,8 +6960,6 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		}
 	}
 
-
-
 	if ((error = sctp_lowlevel_chunk_output((*inp), NULL, NULL, to, m, 0, NULL, 0, 0,
 	                                        0, 0,
 	                                        (*inp)->sctp_lport, sh->src_port, init_chk->init.initiate_tag,
@@ -6974,6 +6981,9 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		}
 	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
+	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
+		sctp_start_net_timers((*stcb));
+	}
 }
 
 

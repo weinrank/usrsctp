@@ -8267,6 +8267,7 @@ void
 insert_cookie(struct sctp_alt_cookie_param *new_cookie, union sctp_sockstore *addr, uint16_t port)
 {
 	int i;
+	struct sctp_alt_cookie_info *cookie_entry;
 
 	if (!(TAILQ_EMPTY(&SCTP_BASE_INFO(cookielist)))) {
 		struct sctp_alt_cookie_info *cookie_info = find_cookie(addr, port);
@@ -8278,7 +8279,15 @@ insert_cookie(struct sctp_alt_cookie_param *new_cookie, union sctp_sockstore *ad
 			return;
 		}
 	}
-	struct sctp_alt_cookie_info *cookie_entry = calloc(1, sizeof(struct sctp_alt_cookie_info));
+	/*struct sctp_alt_cookie_info *cookie_entry =
+	    calloc(1, sizeof(struct sctp_alt_cookie_info)
+	    + ntohs(new_cookie->ph.param_length) - sizeof(struct sctp_paramhdr));*/
+
+	SCTP_MALLOC(cookie_entry, struct sctp_alt_cookie_info *,
+	            sizeof(struct sctp_alt_cookie_info)
+	            + ntohs(new_cookie->ph.param_length) - sizeof(struct sctp_paramhdr),
+	            SCTP_M_ALT_COOKIE);
+
 	switch (addr->sa.sa_family) {
 #ifdef INET
 		case AF_INET:
@@ -8295,7 +8304,7 @@ insert_cookie(struct sctp_alt_cookie_param *new_cookie, union sctp_sockstore *ad
 	}
 	cookie_entry->dst_port = port;
 	cookie_entry->cookie_len = ntohs(new_cookie->ph.param_length) - sizeof(struct sctp_paramhdr);
-	cookie_entry->cookie = calloc(1, cookie_entry->cookie_len);
+	cookie_entry->cookie = (uint8_t *)cookie_entry + sizeof(struct sctp_alt_cookie_info);
 	for (i = 0; i < cookie_entry->cookie_len; i++) {
 		cookie_entry->cookie[i] = new_cookie->cookie[i];
 	}

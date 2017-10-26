@@ -6908,6 +6908,7 @@ retry:
 #endif
 	TAILQ_FOREACH_SAFE(cookie, &SCTP_BASE_INFO(cookielist), sctp_next_cookie, ncookie) {
 		TAILQ_REMOVE(&SCTP_BASE_INFO(cookielist), cookie, sctp_next_cookie);
+		SCTP_FREE(cookie, SCTP_M_ALT_COOKIE);
 	}
 
 	TAILQ_FOREACH_SAFE(it, &sctp_it_ctl.iteratorhead, sctp_nxt_itr, nit) {
@@ -7638,8 +7639,7 @@ sctp_load_addresses_from_init(struct sctp_tcb *stcb, struct mbuf *m,
 				}
 			}
 		} else if (ptype == SCTP_ALT_SACK) {
-			if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
-			    (sctp_is_feature_on(inp, SCTP_PCB_FLAGS_INITALTDATA))) {
+			if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
 				struct sctp_alt_sack_param *asp;
 				uint32_t cumack, arwnd;
 				int abort_flag = 0;

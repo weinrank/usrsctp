@@ -74,6 +74,7 @@ MALLOC_DEFINE(SCTP_M_MVRF, "sctp_mvrf", "sctp mvrf pcb list");
 MALLOC_DEFINE(SCTP_M_ITER, "sctp_iter", "sctp iterator control");
 MALLOC_DEFINE(SCTP_M_SOCKOPT, "sctp_socko", "sctp socket option");
 MALLOC_DEFINE(SCTP_M_MCORE, "sctp_mcore", "sctp mcore queue");
+MALLOC_DEFINE(SCTP_M_ALT_COOKIE, "sctp_alt_cookie", "sctp alternative cookie");
 #endif
 
 /* Global NON-VNET structure that controls the iterator */
