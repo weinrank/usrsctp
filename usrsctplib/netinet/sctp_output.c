@@ -5421,6 +5421,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 		chunk_len += parameter_len;
 	}
 
+	SCTP_BUF_LEN(m) = chunk_len;
 	/* now the addresses */
 	/* To optimize this we could put the scoping stuff
 	 * into a structure and remove the individual uint8's from
@@ -5432,7 +5433,6 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 	                                    m, cnt_inits_to,
 	                                    &padding_len, &chunk_len);
 
-	SCTP_BUF_LEN(m) = chunk_len;
 	init->ch.chunk_length = htons(chunk_len);
 	if (padding_len > 0) {
 		if (sctp_add_pad_tombuf(m_last, padding_len) == NULL) {
