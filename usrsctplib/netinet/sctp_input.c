@@ -558,7 +558,10 @@ sctp_move_to_open_active(struct sctp_tcb *stcb, struct sctp_nets *net)
 			chk = TAILQ_FIRST(&asoc->sent_queue);
 			sctp_timer_start(SCTP_TIMER_TYPE_SEND, stcb->sctp_ep, stcb, chk->whoTo);
 		}
-		sctp_start_net_timers(stcb);
+
+		if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1 && stcb->alt_ready == SCTP_ALT_INIT_SENT) {
+			sctp_start_net_timers(stcb);
+		}
 	}
 }
 
@@ -3035,6 +3038,7 @@ sctp_handle_cookie_echo(struct mbuf *m, int iphlen, int offset,
 			send_int_conf = 1;
 		}
 	}
+
 	sctp_start_net_timers(*stcb);
 	sctp_fill_inp(m, inp_p, iphlen, *stcb, netl, src, dst, sh, had_a_existing_tcb, notification, send_int_conf, vrf_id, port);
 
@@ -6127,6 +6131,13 @@ sctp_common_input_processing(struct mbuf **mm, int iphlen, int offset, int lengt
 			goto out;
 		}
 
+	}
+	if (stcb) {
+		if ((SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) &&
+		    (SCTP_GET_STATE(&stcb->asoc) == SCTP_STATE_OPEN) && (stcb->alt_ready == SCTP_ALT_INIT_ACK_SENT)) {
+			stcb->alt_ready = SCTP_ALT_PACKET_RCVD;
+			sctp_start_net_timers(stcb);
+		}
 	}
 	if (IS_SCTP_CONTROL(ch)) {
 		/* process the control portion of the SCTP packet */

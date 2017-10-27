@@ -5440,6 +5440,7 @@ sctp_send_initiate(struct sctp_inpcb *inp, struct sctp_tcb *stcb, struct sctp_al
 			return;
 		}
 	}
+	stcb->alt_ready = SCTP_ALT_INIT_SENT;
 	SCTPDBG(SCTP_DEBUG_OUTPUT4, "Sending INIT - calls lowlevel_output\n");
 	if ((error = sctp_lowlevel_chunk_output(inp, stcb, net,
 	                                        (struct sockaddr *)&net->ro._l_addr,
@@ -6981,8 +6982,8 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 		}
 	}
 	SCTP_STAT_INCR_COUNTER64(sctps_outcontrolchunks);
-	if (SCTP_BASE_SYSCTL(sctp_alternative_handshake) == 1) {
-		sctp_start_net_timers((*stcb));
+	if ((*stcb)) {
+		(*stcb)->alt_ready = SCTP_ALT_INIT_ACK_SENT;
 	}
 }
 
