@@ -667,6 +667,7 @@ struct sctp_tcb {
 	struct mbuf *alt_data;
 	int alt_data_sent;
 	int alt_data_acked;
+	int alt_ready;
 };
 
 
