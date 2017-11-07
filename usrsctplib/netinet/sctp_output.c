@@ -32,7 +32,7 @@
 
 #ifdef __FreeBSD__
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctp_output.c 323861 2017-09-21 11:56:31Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctp_output.c 325370 2017-11-03 20:46:12Z tuexen $");
 #endif
 
 #include <netinet/sctp_os.h>
@@ -3576,32 +3576,35 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 #else
 	struct cmsghdr cmh;
 #endif
-	int tlen, at, found;
 	struct sctp_sndinfo sndinfo;
 	struct sctp_prinfo prinfo;
 	struct sctp_authinfo authinfo;
+	int tot_len, rem_len, cmsg_data_len, cmsg_data_off, off;
+	int found;
 
-	tlen = SCTP_BUF_LEN(control);
-	at = 0;
-	found = 0;
 	/*
 	 * Independent of how many mbufs, find the c_type inside the control
 	 * structure and copy out the data.
 	 */
-	while (at < tlen) {
-		if ((tlen - at) < (int)CMSG_ALIGN(sizeof(cmh))) {
+	found = 0;
+	tot_len = SCTP_BUF_LEN(control);
+	for (off = 0; off < tot_len; off += CMSG_ALIGN(cmh.cmsg_len)) {
+		rem_len = tot_len - off;
+		if (rem_len < (int)CMSG_ALIGN(sizeof(cmh))) {
 			/* There is not enough room for one more. */
 			return (found);
 		}
-		m_copydata(control, at, sizeof(cmh), (caddr_t)&cmh);
+		m_copydata(control, off, sizeof(cmh), (caddr_t)&cmh);
 		if (cmh.cmsg_len < CMSG_ALIGN(sizeof(cmh))) {
 			/* We dont't have a complete CMSG header. */
 			return (found);
 		}
-		if (((int)cmh.cmsg_len + at) > tlen) {
+		if ((cmh.cmsg_len > INT_MAX) || ((int)cmh.cmsg_len > rem_len)) {
 			/* We don't have the complete CMSG. */
 			return (found);
 		}
+		cmsg_data_len = (int)cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh));
+		cmsg_data_off = off + CMSG_ALIGN(sizeof(cmh));
 		if ((cmh.cmsg_level == IPPROTO_SCTP) &&
 		    ((c_type == cmh.cmsg_type) ||
 		     ((c_type == SCTP_SNDRCV) &&
@@ -3609,11 +3612,14 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 		       (cmh.cmsg_type == SCTP_PRINFO) ||
 		       (cmh.cmsg_type == SCTP_AUTHINFO))))) {
 			if (c_type == cmh.cmsg_type) {
-				if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < cpsize) {
+				if (cpsize > INT_MAX) {
+					return (found);
+				}
+				if (cmsg_data_len < (int)cpsize) {
 					return (found);
 				}
 				/* It is exactly what we want. Copy it out. */
-				m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), (int)cpsize, (caddr_t)data);
+				m_copydata(control, cmsg_data_off, (int)cpsize, (caddr_t)data);
 				return (1);
 			} else {
 				struct sctp_sndrcvinfo *sndrcvinfo;
@@ -3627,10 +3633,10 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 				}
 				switch (cmh.cmsg_type) {
 				case SCTP_SNDINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_sndinfo)) {
+					if (cmsg_data_len < (int)sizeof(struct sctp_sndinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_sndinfo), (caddr_t)&sndinfo);
+					m_copydata(control, cmsg_data_off, sizeof(struct sctp_sndinfo), (caddr_t)&sndinfo);
 					sndrcvinfo->sinfo_stream = sndinfo.snd_sid;
 					sndrcvinfo->sinfo_flags = sndinfo.snd_flags;
 					sndrcvinfo->sinfo_ppid = sndinfo.snd_ppid;
@@ -3638,10 +3644,10 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 					sndrcvinfo->sinfo_assoc_id = sndinfo.snd_assoc_id;
 					break;
 				case SCTP_PRINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_prinfo)) {
+					if (cmsg_data_len < (int)sizeof(struct sctp_prinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
+					m_copydata(control, cmsg_data_off, sizeof(struct sctp_prinfo), (caddr_t)&prinfo);
 					if (prinfo.pr_policy != SCTP_PR_SCTP_NONE) {
 						sndrcvinfo->sinfo_timetolive = prinfo.pr_value;
 					} else {
@@ -3650,10 +3656,10 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 					sndrcvinfo->sinfo_flags |= prinfo.pr_policy;
 					break;
 				case SCTP_AUTHINFO:
-					if ((size_t)(cmh.cmsg_len - CMSG_ALIGN(sizeof(cmh))) < sizeof(struct sctp_authinfo)) {
+					if (cmsg_data_len < (int)sizeof(struct sctp_authinfo)) {
 						return (found);
 					}
-					m_copydata(control, at + CMSG_ALIGN(sizeof(cmh)), sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
+					m_copydata(control, cmsg_data_off, sizeof(struct sctp_authinfo), (caddr_t)&authinfo);
 					sndrcvinfo->sinfo_keynumber_valid = 1;
 					sndrcvinfo->sinfo_keynumber = authinfo.auth_keynumber;
 					break;
@@ -3663,7 +3669,6 @@ sctp_find_cmsg(int c_type, void *data, struct mbuf *control, size_t cpsize)
 				found = 1;
 			}
 		}
-		at += CMSG_ALIGN(cmh.cmsg_len);
 	}
 	return (found);
 }
@@ -4488,9 +4493,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 			}
 #endif
 		} else {
-			/* PMTU check versus smallest asoc MTU goes here */
-			if ((ro->ro_rt != NULL) &&
-			    (net->ro._s_addr)) {
+			if ((ro->ro_rt != NULL) && (net->ro._s_addr) &&
+			    ((net->dest_state & SCTP_ADDR_NO_PMTUD) == 0)) {
 				uint32_t mtu;
 
 				mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
@@ -4959,8 +4963,8 @@ sctp_lowlevel_chunk_output(struct sctp_inpcb *inp,
 				}
 				net->src_addr_selected = 0;
 			}
-			if ((ro->ro_rt != NULL) &&
-			    (net->ro._s_addr)) {
+			if ((ro->ro_rt != NULL) && (net->ro._s_addr) &&
+			    ((net->dest_state & SCTP_ADDR_NO_PMTUD) == 0)) {
 				uint32_t mtu;
 
 				mtu = SCTP_GATHER_MTU_FROM_ROUTE(net->ro._s_addr, &net->ro._l_addr.sa, ro->ro_rt);
@@ -6084,6 +6088,7 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	struct sctp_paramhdr *ph;
 	union sctp_sockstore *over_addr;
 	struct sctp_scoping scp;
+	struct timeval now;
 #ifdef INET
 	struct sockaddr_in *dst4 = (struct sockaddr_in *)dst;
 	struct sockaddr_in *src4 = (struct sockaddr_in *)src;
@@ -6222,7 +6227,9 @@ sctp_send_initiate_ack(struct sctp_inpcb **inp, struct sctp_tcb **stcb,
 	memset(&stc, 0, sizeof(struct sctp_state_cookie));
 
 	/* the time I built cookie */
-	(void)SCTP_GETTIME_TIMEVAL(&stc.time_entered);
+	(void)SCTP_GETTIME_TIMEVAL(&now);
+	stc.time_entered.tv_sec = now.tv_sec;
+	stc.time_entered.tv_usec = now.tv_usec;
 
 	/* populate any tie tags */
 	if (asoc != NULL) {
@@ -7083,7 +7090,15 @@ sctp_get_frag_point(struct sctp_tcb *stcb,
 	if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_V6) {
 		ovh = SCTP_MIN_OVERHEAD;
 	} else {
+#if defined(__Userspace__)
+		if (stcb->sctp_ep->sctp_flags & SCTP_PCB_FLAGS_BOUND_CONN) {
+			ovh = sizeof(struct sctphdr);
+		} else {
+			ovh = SCTP_MIN_V4_OVERHEAD;
+		}
+#else
 		ovh = SCTP_MIN_V4_OVERHEAD;
+#endif
 	}
 	ovh += SCTP_DATA_CHUNK_OVERHEAD(stcb);
 	if (stcb->asoc.sctp_frag_point > asoc->smallest_mtu)
@@ -8791,7 +8806,7 @@ sctp_med_chunk_output(struct sctp_inpcb *inp,
 					sctp_log_cwnd(stcb, net, 1,
 						      SCTP_CWND_LOG_FILL_OUTQ_CALLED);
 				}
-			        continue;
+				continue;
 			}
 			if ((stcb->asoc.cc_functions.sctp_cwnd_new_transmission_begins) &&
 			    (net->flight_size == 0)) {
