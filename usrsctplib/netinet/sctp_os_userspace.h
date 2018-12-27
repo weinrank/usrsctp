@@ -1,4 +1,6 @@
 /*-
+ * SPDX-License-Identifier: BSD-3-Clause
+ *
  * Copyright (c) 2006-2007, by Cisco Systems, Inc. All rights reserved.
  * Copyright (c) 2008-2011, by Randall Stewart. All rights reserved.
  * Copyright (c) 2008-2011, by Michael Tuexen. All rights reserved.
@@ -78,7 +80,7 @@ typedef HANDLE userland_thread_t;
 #define IPVERSION  4
 #define MAXTTL     255
 /* VS2010 comes with stdint.h */
-#if _MSC_VER >= 1600
+#if !defined(_MSC_VER) || (_MSC_VER >= 1600)
 #include <stdint.h>
 #else
 #define uint64_t   unsigned __int64
@@ -218,7 +220,7 @@ typedef char* caddr_t;
 
 #define bzero(buf, len) memset(buf, 0, len)
 #define bcopy(srcKey, dstKey, len) memcpy(dstKey, srcKey, len)
-#if _MSC_VER < 1900
+#if defined(_MSC_VER) && (_MSC_VER < 1900)
 #define snprintf(data, size, format, ...) _snprintf_s(data, size, _TRUNCATE, format, __VA_ARGS__)
 #endif
 #define inline __inline
@@ -274,7 +276,7 @@ typedef char* caddr_t;
 
 #else /* !defined(Userspace_os_Windows) */
 #include <sys/socket.h>
-#if defined(__Userspace_os_DragonFly) || defined(__Userspace_os_FreeBSD) || defined(__Userspace_os_Linux) || defined(__Userspace_os_NetBSD) || defined(__Userspace_os_OpenBSD) || defined(__Userspace_os_NaCl)
+#if defined(__Userspace_os_DragonFly) || defined(__Userspace_os_FreeBSD) || defined(__Userspace_os_Linux) || defined(__Userspace_os_NetBSD) || defined(__Userspace_os_OpenBSD) || defined(__Userspace_os_NaCl) || defined(__Userspace_os_Fuchsia)
 #include <pthread.h>
 #endif
 typedef pthread_mutex_t userland_mutex_t;
@@ -463,7 +465,7 @@ struct sx {int dummy;};
 #include <sys/priv.h>
 #endif
 /* #include <sys/random.h> */
-/* #include <sys/limits.h> */
+#include <limits.h>
 /* #include <machine/cpu.h> */
 
 #if defined(__Userspace_os_Darwin)
@@ -989,11 +991,6 @@ int sctp_userspace_get_mtu_from_ifn(uint32_t if_index, int af);
 #define SCTP_SB_LIMIT_RCV(so) so->so_rcv.sb_hiwat
 #define SCTP_SB_LIMIT_SND(so) so->so_snd.sb_hiwat
 
-/* Future zero copy wakeup/send  function */
-#define SCTP_ZERO_COPY_EVENT(inp, so)
-/* This is re-pulse ourselves for sendbuf */
-#define SCTP_ZERO_COPY_SENDQ_EVENT(inp, so)
-
 #define SCTP_READ_RANDOM(buf, len)	read_random(buf, len)
 
 #define SCTP_SHA1_CTX		struct sctp_sha1_context
@@ -1158,6 +1155,13 @@ sctp_get_mbuf_for_msg(unsigned int space_needed, int want_header, int how, int a
 	(((tvp)->tv_sec == (uvp)->tv_sec) ?				\
 	    ((tvp)->tv_usec cmp (uvp)->tv_usec) :			\
 	    ((tvp)->tv_sec cmp (uvp)->tv_sec))
+#endif
+
+#define SCTP_IS_LISTENING(inp) ((inp->sctp_flags & SCTP_PCB_FLAGS_ACCEPTING) != 0)
+
+#if defined(__Userspace_os_DragonFly) || defined(__Userspace_os_Linux) || defined(__Userspace_os_NaCl) || defined(__Userspace_os_NetBSD) || defined(__Userspace_os_Windows)
+int
+timingsafe_bcmp(const void *, const void *, size_t );
 #endif
 
 #endif

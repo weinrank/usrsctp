@@ -29,17 +29,23 @@ dnl SUCH DAMAGE.
 dnl
 
 AC_INIT([libusrsctp], [0.9.3.0])
-AM_INIT_AUTOMAKE
+AM_INIT_AUTOMAKE([foreign])
 
 AC_PROG_CC
 AC_PROG_LIBTOOL
 AC_CANONICAL_HOST
 AC_CONFIG_MACRO_DIR([m4])
 
+dnl Disable pkg_config support for now
+dnl PKG_PROG_PKG_CONFIG
+dnl PKG_INSTALLDIR
+
 LIBCFLAGS="-DSCTP_PROCESS_LEVEL_LOCKS -DSCTP_SIMPLE_ALLOCATOR -D__Userspace__"
+APPCFLAGS=""
+
 case $host_os in
 darwin*)
-  CFLAGS="$CFLAGS -std=c99 -D__APPLE_USE_RFC_2292"
+  CFLAGS="$CFLAGS -std=c99 -Wno-deprecated-declarations -D__APPLE_USE_RFC_2292"
   LIBCFLAGS="$LIBCFLAGS -U__APPLE__ -D__Userspace_os_Darwin"
   ;;
 dragonfly*)
@@ -49,6 +55,7 @@ dragonfly*)
 freebsd*)
   CFLAGS="$CFLAGS -std=c99 -pthread"
   if $CC --version | grep -q clang; then
+    CFLAGS="$CFLAGS -Wno-unknown-warning-option"
     LDFLAGS="$LDFLAGS -Qunused-arguments"
   fi
   LIBCFLAGS="$LIBCFLAGS -U__FreeBSD__ -D__Userspace_os_FreeBSD"
@@ -90,8 +97,6 @@ else
         AC_MSG_RESULT(no)
 fi
 
-LIBCFLAGS="$CFLAGS $LIBCFLAGS"
-
 AC_ARG_ENABLE(invariants,
   AC_HELP_STRING( [--enable-invariants],
                   [add additional runtime checks @<:@default=no@:>@]),
@@ -114,6 +119,7 @@ AC_ARG_ENABLE(inet,
                   [Support IPv4 @<:@default=yes@:>@]),
     enable_inet=$enableval,enable_inet=yes)
 if test x$enable_inet = xyes; then
+        APPCFLAGS="$APPCFLAGS -DINET"
         AC_DEFINE(INET, 1, [Support IPv4])
 fi
 
@@ -122,32 +128,15 @@ AC_ARG_ENABLE(inet6,
                   [Support IPv6 @<:@default=yes@:>@]),
     enable_inet6=$enableval,enable_inet6=yes)
 if test x$enable_inet6 = xyes; then
+        APPCFLAGS="$APPCFLAGS -DINET6"
         AC_DEFINE(INET6, 1, [Support IPv6])
 fi
 
-AC_ARG_ENABLE(crc32chw,
-  AC_HELP_STRING( [--enable-crc32chw],
-                  [Support CRC32C in hardware @<:@default=yes@:>@]),
-    enable_crc32chw=$enableval,enable_crc32chw=yes)
-if test x$enable_crc32chw = xyes; then
-        AC_DEFINE(CRC32CHW, 1, [Support CRC32C in hardware])
-fi
-
-AC_ARG_ENABLE(netmap,
-  AC_HELP_STRING( [--enable-netmap],
-                  [Support NETMAP @<:@default=no@:>@]),
-    enable_netmap=$enableval,enable_netmap=no)
-if test x$enable_netmap = xyes; then
-        AC_DEFINE(NETMAP, 1, [Support NETMAP])
-fi
-
-AC_ARG_ENABLE(multistack,
-  AC_HELP_STRING( [--enable-multistack],
-                  [Support multistack @<:@default=no@:>@]),
-    enable_multistack=$enableval,enable_multistack=no)
-if test x$enable_multistack = xyes; then
-        AC_DEFINE(MULTISTACK, 1, [Support MULTISTACK])
-fi
+AC_ARG_ENABLE(programs,
+  AC_HELP_STRING( [--enable-programs],
+                  [build example programs @<:@default=yes@:>@]),
+    enable_programs=$enableval,enable_programs=yes)
+AM_CONDITIONAL([COND_PROGRAMS], [test "$enable_programs" = yes])
 
 AC_CHECK_TYPE(size_t)
 AC_CHECK_TYPE(ssize_t)
@@ -155,6 +144,7 @@ AC_CHECK_TYPE(ssize_t)
 AC_CHECK_FUNCS(socket, , AC_CHECK_LIB(socket, socket))
 AC_CHECK_FUNCS(inet_addr, , AC_CHECK_LIB(nsl, inet_addr))
 
+AC_CHECK_HEADERS(stdatomic.h)
 AC_CHECK_HEADERS(sys/queue.h)
 AC_CHECK_HEADERS(linux/if_addr.h, [], [], [#include <sys/socket.h>])
 AC_CHECK_HEADERS(linux/rtnetlink.h, [], [], [#include <sys/socket.h>])
@@ -198,4 +188,7 @@ AC_TRY_COMPILE([#ifdef HAVE_SYS_TYPES_H
 AC_C_BIGENDIAN
 
 AC_SUBST([LIBCFLAGS])
-AC_OUTPUT(Makefile usrsctplib/Makefile programs/Makefile)
+AC_SUBST([APPCFLAGS])
+dnl AC_CONFIG_FILES([usrsctp.pc])
+AC_CONFIG_FILES(usrsctplib/Makefile programs/Makefile Makefile)
+AC_OUTPUT
