@@ -113,7 +113,7 @@ static uint8_t crc32c_hw_support(void);
 static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
 #endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
 
-static uint32_t sctp_crc_tableil8_o32[256] =
+static const uint32_t sctp_crc_tableil8_o32[256] =
 {
 	0x00000000, 0xF26B8303, 0xE13B70F7, 0x1350F3F4, 0xC79A971F, 0x35F1141C, 0x26A1E7E8, 0xD4CA64EB,
 	0x8AD958CF, 0x78B2DBCC, 0x6BE22838, 0x9989AB3B, 0x4D43CFD0, 0xBF284CD3, 0xAC78BF27, 0x5E133C24,
@@ -775,59 +775,17 @@ sctp_finalize_crc32c(uint32_t crc32c)
 uint32_t
 sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 {
-#if 0
-	/*
-	 * given a mbuf chain with a packetheader offset by 'offset'
-	 * pointing at a sctphdr (with csum set to 0) go through the chain
-	 * of SCTP_BUF_NEXT()'s and calculate the SCTP checksum. This also
-	 * has a side bonus as it will calculate the total length of the
-	 * mbuf chain. Note: if offset is greater than the total mbuf
-	 * length, checksum=1, pktlen=0 is returned (ie. no real error code)
-	 */
-
-
-	uint32_t base;
-	struct mbuf *at;
+	uint32_t base = 0xffffffff;
 
 #if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 	static uint8_t sse42support = 2;
 
-	if(sse42support == 2) {
+	if (sse42support == 2) {
+		// return of cr32c_hw_support is 0/1 -> since static -> only printed once
 		sse42support = crc32c_hw_support();
-		SCTP_PRINTF("checking crc32c_hw_support - %u\n",sse42support);
+		SCTP_PRINTF("checking crc32c_hw_support - %u\n", sse42support);
 	}
 #endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
-
-
-	base = 0xffffffff;
-	at = m;
-	/* find the correct mbuf and offset into mbuf */
-	while ((at != NULL) && (offset > (uint32_t) SCTP_BUF_LEN(at))) {
-		offset -= SCTP_BUF_LEN(at);	/* update remaining offset
-						 * left */
-		at = SCTP_BUF_NEXT(at);
-	}
-	while (at != NULL) {
-		if ((SCTP_BUF_LEN(at) - offset) > 0) {
-			/* calculate CRC32 in hardware (SSE42) or software */
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-			if(sse42support) {
-				base = crc32c_hw(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
-			} else {
-#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
-				base = calculate_crc32c(base, (unsigned char *)(SCTP_BUF_AT(at, offset)), (unsigned int)(SCTP_BUF_LEN(at) - offset));
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-			}
-#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
-		}
-		if (offset) {
-			/* we only offset once into the first mbuf */
-			if (offset < (uint32_t) SCTP_BUF_LEN(at))
-				offset = 0;
-			else
-				offset -= SCTP_BUF_LEN(at);
-#endif
-	uint32_t base = 0xffffffff;
 
 	while (offset > 0) {
 		KASSERT(m != NULL, ("sctp_calculate_cksum, offset > length of mbuf chain"));
@@ -838,15 +796,35 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 		m = m->m_next;
 	}
 	if (offset > 0) {
-		base = calculate_crc32c(base,
-		                        (unsigned char *)(m->m_data + offset),
-		                        (unsigned int)(m->m_len - offset));
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+		if(sse42support) {
+			base = crc32c_hw(base,
+			                  (unsigned char *)(m->m_data + offset),
+			                  (unsigned int)(m->m_len - offset));
+		} else {
+#endif
+			base = calculate_crc32c(base,
+			                        (unsigned char *)(m->m_data + offset),
+			                        (unsigned int)(m->m_len - offset));
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+		}
+#endif
 		m = m->m_next;
 	}
 	while (m != NULL) {
-		base = calculate_crc32c(base,
-		                        (unsigned char *)m->m_data,
-		                        (unsigned int)m->m_len);
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+		if(sse42support) {
+			base = crc32c_hw(base,
+			                  (unsigned char *)(m->m_data),
+			                  (unsigned int)(m->m_len));
+		} else {
+#endif
+			base = calculate_crc32c(base,
+			                        (unsigned char *)(m->m_data),
+			                        (unsigned int)(m->m_len ));
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+		}
+#endif
 		m = m->m_next;
 	}
 	base = sctp_finalize_crc32c(base);
@@ -1228,7 +1206,6 @@ static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
 
     /* pre-process the crc */
     crc0 = crc;// ^ 0xffffffff;
-
 
     /* compute the crc for up to seven leading bytes to bring the data pointer
        to an eight-byte boundary */

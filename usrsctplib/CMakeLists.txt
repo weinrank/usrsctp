@@ -169,8 +169,14 @@ list(APPEND usrsctp_sources
 )
 
 if(sctp_netmap OR sctp_multistack)
-	LIST (APPEND usrsctp_root_HEADERS user_netmap.h	user_netmap_config.h)
-	LIST (APPEND usrsctp_SOURCES user_netmap.c)
+	LIST (APPEND usrsctp_root_HEADERS
+		user_netmap.h
+		user_netmap_config.h
+	)
+
+	LIST (APPEND usrsctp_SOURCES
+		user_netmap.c
+	)
 endif()
 
 add_library(usrsctp SHARED ${usrsctp_sources} ${usrsctp_headers})
