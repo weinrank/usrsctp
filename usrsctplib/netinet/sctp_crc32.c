@@ -724,7 +724,9 @@ calculate_crc32c(uint32_t crc32c,
                  const unsigned char *buffer,
                  unsigned int length)
 {
-	if (length < 4) {
+	if (crc32c_hw_support() == 1) {
+		return crc32c_hw(crc32c, buffer, length);
+	} else if (length < 4) {
 		return (singletable_crc32c(crc32c, buffer, length));
 	} else {
 		return (multitable_crc32c(crc32c, buffer, length));
@@ -777,16 +779,6 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 {
 	uint32_t base = 0xffffffff;
 
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-	static uint8_t sse42support = 2;
-
-	if (sse42support == 2) {
-		// return of cr32c_hw_support is 0/1 -> since static -> only printed once
-		sse42support = crc32c_hw_support();
-		SCTP_PRINTF("checking crc32c_hw_support - %u\n", sse42support);
-	}
-#endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
-
 	while (offset > 0) {
 		KASSERT(m != NULL, ("sctp_calculate_cksum, offset > length of mbuf chain"));
 		if (offset < (uint32_t)m->m_len) {
@@ -796,35 +788,15 @@ sctp_calculate_cksum(struct mbuf *m, uint32_t offset)
 		m = m->m_next;
 	}
 	if (offset > 0) {
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-		if(sse42support) {
-			base = crc32c_hw(base,
-			                  (unsigned char *)(m->m_data + offset),
-			                  (unsigned int)(m->m_len - offset));
-		} else {
-#endif
-			base = calculate_crc32c(base,
-			                        (unsigned char *)(m->m_data + offset),
-			                        (unsigned int)(m->m_len - offset));
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-		}
-#endif
+		base = calculate_crc32c(base,
+		                        (unsigned char *)(m->m_data + offset),
+		                        (unsigned int)(m->m_len - offset));
 		m = m->m_next;
 	}
 	while (m != NULL) {
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-		if(sse42support) {
-			base = crc32c_hw(base,
-			                  (unsigned char *)(m->m_data),
-			                  (unsigned int)(m->m_len));
-		} else {
-#endif
-			base = calculate_crc32c(base,
-			                        (unsigned char *)(m->m_data),
-			                        (unsigned int)(m->m_len ));
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
-		}
-#endif
+		base = calculate_crc32c(base,
+		                        (unsigned char *)m->m_data,
+		                        (unsigned int)m->m_len);
 		m = m->m_next;
 	}
 	base = sctp_finalize_crc32c(base);
@@ -863,9 +835,6 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #endif
 
 
-#if !defined(SCTP_WITH_NO_CSUM)
-#if defined(__FreeBSD__) && __FreeBSD_version >= 800000
-#else
 #if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 
 /* CRC32C in hardware begin
@@ -1290,22 +1259,21 @@ static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len)
    processors. */
 
 static uint8_t crc32c_hw_support(void) {
-
+	static uint8_t support = 2;
 	uint32_t eax, ecx;
 
-	eax = 1;
-	ecx = 0;
-	__asm__("cpuid"
-			: "=c"(ecx)
-			: "a"(eax)
-			: "%ebx", "%edx");
+	if (support == 2) {
+		eax = 1;
+		ecx = 0;
+		__asm__("cpuid"
+				: "=c"(ecx)
+				: "a"(eax)
+				: "%ebx", "%edx");
+		support = (ecx >> 20) & 1;
+	}
 
-	return (ecx >> 20) & 1;
+	return support;
 }
 
 /* CRC32C in hardware end */
 #endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
-
-
-#endif /* !defined(SCTP_WITH_NO_CSUM) */
-#endif /* defined(__FreeBSD__) && __FreeBSD_version >= 800000 */
