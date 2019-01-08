@@ -724,9 +724,13 @@ calculate_crc32c(uint32_t crc32c,
                  const unsigned char *buffer,
                  unsigned int length)
 {
+#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 	if (crc32c_hw_support() == 1) {
 		return crc32c_hw(crc32c, buffer, length);
-	} else if (length < 4) {
+	}
+#endif
+
+	if (length < 4) {
 		return (singletable_crc32c(crc32c, buffer, length));
 	} else {
 		return (multitable_crc32c(crc32c, buffer, length));
@@ -1270,6 +1274,8 @@ static uint8_t crc32c_hw_support(void) {
 				: "a"(eax)
 				: "%ebx", "%edx");
 		support = (ecx >> 20) & 1;
+
+		printf("CRC32C Hardware-Support: %d (%s)\n", support, support ? "enabled" : "disabled");
 	}
 
 	return support;
