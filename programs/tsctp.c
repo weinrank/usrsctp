@@ -182,8 +182,7 @@ handle_connection(void *arg)
 			gettimeofday(&note_time, NULL);
 			printf("notification arrived at %f\n", note_time.tv_sec+(double)note_time.tv_usec/1000000.0);
 			snp = (union sctp_notification *)buf;
-			if (snp->sn_header.sn_type==SCTP_PEER_ADDR_CHANGE)
-			{
+			if (snp->sn_header.sn_type == SCTP_PEER_ADDR_CHANGE) {
 				spc = &snp->sn_paddr_change;
 				printf("SCTP_PEER_ADDR_CHANGE: state=%d, error=%d\n",spc->spc_state, spc->spc_error);
 			}
@@ -206,8 +205,9 @@ handle_connection(void *arg)
 		n = usrsctp_recvv(conn_sock, (void *) buf, BUFFERSIZE, (struct sockaddr *) &addr, &len, (void *)&rn,
 		                  &infolen, &infotype, &flags);
 	}
-	if (n < 0)
+	if (n < 0) {
 		perror("sctp_recvv");
+	}
 	gettimeofday(&time_now, NULL);
 	timersub(&time_now, &time_start, &time_diff);
 	seconds = time_diff.tv_sec + (double)time_diff.tv_usec/1000000.0;
@@ -271,8 +271,9 @@ send_cb(struct socket *sock, uint32_t sb_free) {
 		messages++;
 	}
 	if ((done == 1) || (messages == (number_of_messages - 1))) {
-		if (very_verbose)
+		if (very_verbose) {
 			printf("Sending final message number %lu.\n", messages + 1);
+		}
 
 		sndinfo.snd_flags |= SCTP_EOF;
 		if (usrsctp_sendv(psock, buffer, length, (struct sockaddr *) &remote_addr, 1,
