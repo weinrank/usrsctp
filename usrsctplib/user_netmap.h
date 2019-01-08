@@ -29,7 +29,16 @@
 #ifndef _USER_NETMAP_H_
 #define _USER_NETMAP_H_
 
+#if defined(__Userspace_os_FreeBSD)
+#define __FreeBSD__
+#endif
+
 #include <net/netmap_user.h>
+
+#if defined(__Userspace_os_FreeBSD)
+#undef __FreeBSD__
+#endif
+
 #include <user_mbuf.h>
 
 #if defined(MULTISTACK)
@@ -51,11 +60,9 @@ struct sctp_netmap_base {
 #endif /* defined(MULTISTACK) */
 };
 
-
-
 void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak);
 void *usrsctp_netmap_recv_function(void *arg);
-int usrsctp_netmap_init();
-int usrsctp_netmap_close();
+int usrsctp_netmap_init(void);
+int usrsctp_netmap_close(void);
 
 #endif
