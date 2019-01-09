@@ -51,6 +51,7 @@
 #include <string.h>
 #include <signal.h>
 #include <errno.h>
+#include <inttypes.h>
 #ifdef LINUX
 #include <getopt.h>
 #endif
@@ -258,16 +259,16 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			if (tsctp_meta->par_stats_human) {
 				printf("Connection closed - statistics\n");
 
-				printf("\tmessage size  : %llu\n", tsctp_meta->stat_message_length);
-				printf("\tmessages      : %llu\n", tsctp_meta->stat_messages);
-				printf("\trecv() calls  : %llu\n", tsctp_meta->stat_recv_calls);
-				printf("\tnotifications : %llu\n", tsctp_meta->stat_notifications);
+				printf("\tmessage size  : %" PRIu64 "\n", tsctp_meta->stat_message_length);
+				printf("\tmessages      : %" PRIu64 "\n", tsctp_meta->stat_messages);
+				printf("\trecv() calls  : %" PRIu64 "\n", tsctp_meta->stat_recv_calls);
+				printf("\tnotifications : %" PRIu64 "\n", tsctp_meta->stat_notifications);
 				printf("\ttransferred   : %sByte\n", bytes2human(tsctp_meta->stat_message_length * tsctp_meta->stat_messages));
 				printf("\truntime       : %.2f s\n", seconds);
 				printf("\tgoodput       : %sBit/s\n", bytes2human((double) tsctp_meta->stat_message_length * (double) tsctp_meta->stat_messages / seconds * 8));
 
 			} else {
-				printf("%llu, %llu, %llu, %llu, %f, %f, %llu\n",
+				printf("%" PRIu64 ", %" PRIu64 ", %" PRIu64 ", %" PRIu64 ", %f, %f, %" PRIu64 "\n",
 						tsctp_meta->stat_message_length,
 						tsctp_meta->stat_messages,
 						tsctp_meta->stat_recv_calls,
@@ -295,7 +296,7 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			tsctp_meta->stat_messages++;
 
 			if (par_very_verbose) {
-				printf("Message #%llu sent\n", tsctp_meta->stat_messages);
+				printf("Message #%" PRIu64 " sent\n", tsctp_meta->stat_messages);
 			}
 		}
 
