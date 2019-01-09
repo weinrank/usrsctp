@@ -254,8 +254,6 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			timersub(&time_now, &tsctp_meta->stat_start, &time_diff);
 			seconds = time_diff.tv_sec + (double)time_diff.tv_usec / 1000000.0;
 
-			printf("METAA: %d\n", tsctp_meta->par_stats_human);
-
 			if (tsctp_meta->par_stats_human) {
 				printf("Connection closed - statistics\n");
 
