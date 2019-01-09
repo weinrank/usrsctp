@@ -287,7 +287,7 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			snd_info.snd_flags |= SCTP_UNORDERED;
 		}
 
-		while ((n = usrsctp_sendv(upcall_socket, tsctp_meta->buffer, tsctp_meta->par_message_length, NULL, 0, &snd_info, (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0)) > 0 && (!tsctp_meta->par_messages || tsctp_meta->par_messages > tsctp_meta->stat_messages)) {
+		while ((n = usrsctp_sendv(upcall_socket, tsctp_meta->buffer, tsctp_meta->par_message_length, NULL, 0, &snd_info, (socklen_t)sizeof(struct sctp_sndinfo), SCTP_SENDV_SNDINFO, 0)) > 0) {
 			if (tsctp_meta->stat_messages == 0) {
 				gettimeofday(&tsctp_meta->stat_start, NULL);
 			}
@@ -295,6 +295,10 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 
 			if (par_very_verbose) {
 				printf("Message #%" PRIu64 " sent\n", tsctp_meta->stat_messages);
+			}
+
+			if (tsctp_meta->par_messages && tsctp_meta->par_messages == tsctp_meta->stat_messages) {
+				break;
 			}
 		}
 
@@ -623,8 +627,6 @@ int main(int argc, char **argv)
 	if (usrsctp_setsockopt(psock, IPPROTO_SCTP, SCTP_ADAPTATION_LAYER, (const void*)&ind, (socklen_t)sizeof(struct sctp_setadaptation)) < 0) {
 		perror("setsockopt");
 	}
-
-	printf("METAA: %d\n", meta->par_stats_human);
 
 	if (meta->par_role == TSCTP_SERVER) {
 		if (rcvbufsize) {
