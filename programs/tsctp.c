@@ -91,7 +91,7 @@ char Usage[] =
 "        -c             use callback API\n"
 "        -E             local UDP encapsulation port (default 9899)\n"
 "        -f             fragmentation point\n"
-"        -l             size of send/receive buffer\n"
+"        -l             message length\n"
 "        -L             bind to local IP (default INADDR_ANY)\n"
 "        -n             number of messages sent (0 means infinite)/received\n"
 "        -D             turns Nagle off\n"
