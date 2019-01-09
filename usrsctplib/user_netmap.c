@@ -1,6 +1,6 @@
 #include <stdio.h>
 
-#if defined(NETMAP) || defined(MULTISTACK)
+#if defined(NETMAP)
 
 #include <string.h>
 #include <stdint.h>
@@ -485,11 +485,8 @@ int usrsctp_netmap_init() {
 	// null struct and copy interace name
 	memset(&netmap_base->req,0,sizeof(struct nmreq));
 
-#if defined(MULTISTACK)
-	sprintf(netmap_base->req.nr_name, "%s%u", netmap_ifname, getpid());
-#else //defined(MULTISTACK)
 	strcpy(netmap_base->req.nr_name, netmap_ifname);
-#endif //defined(MULTISTACK)
+
 	printf("netmap interface: %s\n",netmap_base->req.nr_name);
 
     SCTP_PRINTF("netmap - local UDP port: %u\n",SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
@@ -512,52 +509,6 @@ int usrsctp_netmap_init() {
 	#endif
 
 	// prepare outgoing ethernet header
-
-
-
-#if defined(MULTISTACK)
-    SCTP_PRINTF("netmap - running in MULTISTACK mode\n");
-
-	memset(&netmap_base->ms_sin,0,sizeof(struct sockaddr_in));
-#ifdef HAVE_SIN_LEN
-	netmap_base->ms_sin.sin_len = sizeof(struct sockaddr_in);
-#endif
-
-
-    if ((netmap_base->ms_so = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)) < 0) {
-        perror("socket");
-        return -1;
-    }
-    SCTP_PRINTF("multistack - socket\n");
-
-    netmap_base->ms_sin.sin_family = AF_INET;
-    netmap_base->ms_sin.sin_port = htons(SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
-#ifdef HAVE_SIN_LEN
-	netmap_base->ms_sin.sin_len = sizeof(struct sockaddr_in);
-#endif
-    //sin.sin_addr.s_addr = htonl(g.src_ip.start);
-	if(!inet_pton(AF_INET, netmap_ip_src, &(netmap_base->ms_sin.sin_addr))){
-		printf("error: invalid local address\n");
-		return -1;
-	}
-    if (bind(netmap_base->ms_so, (struct sockaddr *)&(netmap_base->ms_sin), sizeof(struct sockaddr_in))) {
-        perror("multistack - bind");
-        close(netmap_base->ms_so);
-        return -1;
-    }
-    SCTP_PRINTF("multistack - bind\n");
-
-	strcpy(netmap_base->ms_req.mr_name, netmap_base->req.nr_name);
-    netmap_base->ms_req.mr_cmd = MULTISTACK_BIND;
-    netmap_base->ms_req.mr_sin = netmap_base->ms_sin;
-    netmap_base->ms_req.mr_proto = IPPROTO_UDP;
-
-    if (ioctl(netmap_base->fd, NIOCCONFIG, &(netmap_base->ms_req)) == -1) {
-        perror("multistack - ioctl");
-        return -1;
-    }
-
-#endif /* MULTISTACK */
 
 	if((netmap_base->mem = mmap(0, netmap_base->req.nr_memsize, PROT_WRITE | PROT_READ, MAP_SHARED, netmap_base->fd, 0)) == (void *) -1){
 		SCTP_PRINTF("netmap - mmap failed\n");
@@ -590,20 +541,6 @@ int usrsctp_netmap_close() {
 	pthread_join(SCTP_BASE_VAR(recvthreadnetmap), NULL);
 	SCTP_PRINTF("done\n");
 
-#ifdef MULTISTACK
-	SCTP_BASE_VAR(netmap_base.ms_req.mr_cmd) = MULTISTACK_UNBIND;
-	if (ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCCONFIG, &SCTP_BASE_VAR(netmap_base.ms_req)) == -1) {
-		perror("multistack - ioctl");
-		SCTP_PRINTF("raus\n");
-		return -1;
-	}
-
-	if (close(SCTP_BASE_VAR(netmap_base.ms_so))) {
-		perror("multistack - close");
-		return -1;
-	}
-#endif
-
 	// closes the file descriptor
 	if (munmap(SCTP_BASE_VAR(netmap_base.mem), SCTP_BASE_VAR(netmap_base.req.nr_memsize))) {
 		SCTP_PRINTF("error - munmap failed\n");
@@ -622,4 +559,4 @@ int usrsctp_netmap_close() {
 
 }
 
-#endif //defined(NETMAP) || defined(MULTISTACK)
+#endif //defined(NETMAP)

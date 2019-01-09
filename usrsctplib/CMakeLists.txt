@@ -168,7 +168,7 @@ list(APPEND usrsctp_sources
 	user_socket.c
 )
 
-if(sctp_netmap OR sctp_multistack)
+if(sctp_netmap)
 	LIST (APPEND usrsctp_root_HEADERS
 		user_netmap.h
 		user_netmap_config.h

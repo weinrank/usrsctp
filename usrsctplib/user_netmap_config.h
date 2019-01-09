@@ -7,12 +7,9 @@
 #include "netmap_debug.h"
 #endif
 
-#if defined(MULTISTACK)
-static const char *netmap_ifname = "valem:usrsctp1";
-static const uint16_t multistack_port = 9899;
-#else //defined(MULTISTACK)
+
 static const char *netmap_ifname = "ix0";
-#endif //defined(MULTISTACK)
+
 
 static const char *netmap_mac_src = "a0:36:9f:80:ea:0c";
 static const char *netmap_mac_dst = "a0:36:9f:80:e9:dc"; //bsd1 ix0

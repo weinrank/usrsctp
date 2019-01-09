@@ -41,10 +41,6 @@
 
 #include <user_mbuf.h>
 
-#if defined(MULTISTACK)
-#include <net/multistack.h>
-#endif // defined(MULTISTACK)
-
 enum netmap_states {NETMAP_S_CLOSED, NETMAP_S_OPENING, NETMAP_S_OPEN, NETMAP_S_CLOSING};
 
 struct sctp_netmap_base {
@@ -53,11 +49,6 @@ struct sctp_netmap_base {
 	struct nmreq req;
 	char *mem;
 	struct netmap_if *iface;
-#if defined(MULTISTACK)
-    int ms_so;
-    struct msreq ms_req;
-	struct sockaddr_in ms_sin;
-#endif /* defined(MULTISTACK) */
 };
 
 void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak);

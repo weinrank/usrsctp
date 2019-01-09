@@ -198,9 +198,9 @@ sctp_finish(void)
 #endif
 #endif
 
-#if defined(NETMAP) || defined(MULTISTACK)
+#if defined(NETMAP)
 	usrsctp_netmap_close();
-#endif //defined(NETMAP) || defined(MULTISTACK)
+#endif //defined(NETMAP)
 
 #ifdef INET
 	if (SCTP_BASE_VAR(userspace_rawsctp) != -1) {

@@ -77,11 +77,6 @@ if (sctp_netmap)
 	add_definitions(-DNETMAP)
 endif()
 
-option(sctp_multistack "Multistack support" 0)
-if (sctp_multistack)
-	add_definitions(-DMULTISTACK)
-endif()
-
 option(sctp_werror "Treat warning as error" 1)
 
 option(sctp_link_programs_static "Link example programs static" 0)

@@ -40,9 +40,9 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_pcb.h 325370 2017-11-03 20:46:12Z tuex
 #ifndef _NETINET_SCTP_PCB_H_
 #define _NETINET_SCTP_PCB_H_
 
-#if defined(NETMAP) || defined(MULTISTACK)
+#if defined(NETMAP)
 #include <user_netmap.h>
-#endif /* defined(NETMAP) || defined(MULTISTACK) */
+#endif /* defined(NETMAP) */
 
 #include <netinet/sctp_os.h>
 #include <netinet/sctp.h>
@@ -345,10 +345,10 @@ struct sctp_base_info {
 	userland_thread_t recvthreadraw6;
 	userland_thread_t recvthreadudp6;
 #endif
-#if defined(NETMAP) || defined(MULTISTACK)
+#if defined(NETMAP)
 	struct sctp_netmap_base netmap_base;
 	userland_thread_t recvthreadnetmap;
-#endif //defined(NETMAP) || defined(MULTISTACK)
+#endif //defined(NETMAP)
 	int (*conn_output)(void *addr, void *buffer, size_t length, uint8_t tos, uint8_t set_df);
 	void (*debug_printf)(const char *format, ...);
 	int crc32c_offloaded;
