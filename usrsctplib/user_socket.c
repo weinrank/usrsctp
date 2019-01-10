@@ -3031,8 +3031,8 @@ sctp_userspace_ip_output(int *result, struct mbuf *o_pak,
 	*result = 0;
 
 #if defined(NETMAP)
-	if(SCTP_BASE_VAR(netmap_base.fd) != -1) {
-		usrsctp_netmap_ip_output(result,o_pak);
+	if(SCTP_BASE_VAR(netmap_fd) != -1) {
+		usrsctp_netmap_ip_output(result, o_pak);
 		sctp_m_freem(o_pak);
 		//goto free_mbuf;
 		return;

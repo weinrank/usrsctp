@@ -346,7 +346,8 @@ struct sctp_base_info {
 	userland_thread_t recvthreadudp6;
 #endif
 #if defined(NETMAP)
-	struct sctp_netmap_base netmap_base;
+	void *netmap_base;
+	int netmap_fd;
 	userland_thread_t recvthreadnetmap;
 #endif //defined(NETMAP)
 	int (*conn_output)(void *addr, void *buffer, size_t length, uint8_t tos, uint8_t set_df);

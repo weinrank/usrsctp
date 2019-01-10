@@ -75,6 +75,7 @@ endif()
 option(sctp_netmap "Netmap support" 0)
 if (sctp_netmap)
 	add_definitions(-DNETMAP)
+	add_definitions(-DNETMAP_DEBUG)
 endif()
 
 option(sctp_werror "Treat warning as error" 1)

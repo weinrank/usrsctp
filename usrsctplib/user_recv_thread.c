@@ -1457,13 +1457,13 @@ recv_thread_init(void)
 	}
 #endif
 #if defined(NETMAP)
-	if (SCTP_BASE_VAR(netmap_base.fd) != -1) {
+	if (SCTP_BASE_VAR(netmap_fd) != -1) {
 		int rc;
 
 		if ((rc = sctp_userspace_thread_create(&SCTP_BASE_VAR(recvthreadnetmap), &usrsctp_netmap_recv_function))) {
 			SCTPDBG(SCTP_DEBUG_USR, "Can't start NETMAP recv thread (%d).\n", rc);
-			close(SCTP_BASE_VAR(netmap_base.fd));
-			SCTP_BASE_VAR(netmap_base.fd) = -1;
+			close(SCTP_BASE_VAR(netmap_fd));
+			SCTP_BASE_VAR(netmap_fd) = -1;
 		}
 	}
 #endif // defined(NETMAP)

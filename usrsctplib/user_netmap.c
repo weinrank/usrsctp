@@ -20,13 +20,33 @@
 #include "user_netmap_config.h"
 #define MAXLEN_MBUF_CHAIN 32
 
+#if defined(__Userspace_os_FreeBSD)
+#define __FreeBSD__
+#endif
+
+#include <net/netmap_user.h>
+
+#if defined(__Userspace_os_FreeBSD)
+#undef __FreeBSD__
+#endif
+
+#include <user_mbuf.h>
+
+enum netmap_states {NETMAP_S_CLOSED, NETMAP_S_OPENING, NETMAP_S_OPEN, NETMAP_S_CLOSING};
+
+struct sctp_netmap_base {
+	enum netmap_states state;
+	struct nmreq req;
+	char *mem;
+	struct netmap_if *iface;
+};
+
 static uint16_t ip_checksum(const char *data, size_t length);
 static void 	handle_ethernet(const char* buffer, size_t length);
 static void 	handle_ipv4(const char *buffer, size_t length);
 static void 	handle_sctp(const char *buffer, size_t length, struct ip *ip_header, uint16_t udp_encaps_port);
 static void 	handle_udp(const char *buffer, size_t length, struct ip *ip_header);
 static void 	handle_arp(const char *buffer, size_t length);
-
 
 #pragma pack(push,1) // disable padding
 struct arp_packet {
@@ -44,53 +64,55 @@ struct arp_packet {
 
 
 /* Compute the checksum of the given ip header. */
-static uint16_t ip_checksum(const char* data,size_t length) {
-    // Initialise the accumulator.
-    uint64_t acc=0xffff;
+static uint16_t ip_checksum(const char* data, size_t length) {
+	// Initialise the accumulator.
+	uint64_t acc = 0xffff;
+	// Handle any partial block at the start of the data.
+	unsigned int offset = ((uintptr_t)data) & 3;
 
-    // Handle any partial block at the start of the data.
-    unsigned int offset=((uintptr_t)data)&3;
-    if (offset) {
-        size_t count=4-offset;
-        if (count>length) count=length;
-        uint32_t word=0;
-        memcpy(offset+(char*)&word,data,count);
-        acc+=ntohl(word);
-        data+=count;
-        length-=count;
-    }
+	if (offset) {
+		size_t count = 4 - offset;
+		if (count > length) {
+			count = length;
+		}
+		uint32_t word = 0;
+		memcpy(offset + (char*) &word, data, count);
+		acc += ntohl(word);
+		data += count;
+		length -= count;
+	}
 
-    // Handle any complete 32-bit blocks.
-    const char* data_end=data+(length&~3);
-    while (data!=data_end) {
-        uint32_t word;
-        memcpy(&word,data,4);
-        acc+=ntohl(word);
-        data+=4;
-    }
-    length&=3;
+	// Handle any complete 32-bit blocks.
+	const char* data_end = data + (length& ~ 3);
+	while (data != data_end) {
+		uint32_t word;
+		memcpy(&word, data, 4);
+		acc += ntohl(word);
+		data += 4;
+	}
+	length &= 3;
 
-    // Handle any partial block at the end of the data.
-    if (length) {
-        uint32_t word=0;
-        memcpy(&word,data,length);
-        acc+=ntohl(word);
-    }
+	// Handle any partial block at the end of the data.
+	if (length) {
+		uint32_t word = 0;
+		memcpy(&word, data, length);
+		acc += ntohl(word);
+	}
 
-    // Handle deferred carries.
-    acc=(acc&0xffffffff)+(acc>>32);
-    while (acc>>16) {
-        acc=(acc&0xffff)+(acc>>16);
-    }
+	// Handle deferred carries.
+	acc = (acc & 0xffffffff) + (acc >> 32);
+	while (acc >> 16) {
+		acc = (acc & 0xffff) + (acc >> 16);
+	}
 
-    // If the data began at an odd byte address
-    // then reverse the byte order to compensate.
-    if (offset&1) {
-        acc=((acc&0xff00)>>8)|((acc&0x00ff)<<8);
-    }
+	// If the data began at an odd byte address
+	// then reverse the byte order to compensate.
+	if (offset & 1) {
+		acc = ((acc & 0xff00) >> 8) | ((acc & 0x00ff) << 8);
+	}
 
-    // Return the checksum in network byte order.
-    return htons(~acc);
+	// Return the checksum in network byte order.
+	return htons(~acc);
 }
 
 
@@ -101,24 +123,23 @@ static void handle_ethernet(const char* buffer, size_t length) {
 	struct ether_header *eth_header;
 
 	if (length < sizeof(struct ether_header)) {
-        SCTP_PRINTF("error: packet too short for ether_header!\n");
-        return;
-    };
+		SCTP_PRINTF("error: packet too short for ether_header!\n");
+		return;
+	};
 
-    eth_header = (struct ether_header*)buffer;
+	eth_header = (struct ether_header*) buffer;
 
-    switch (htons(eth_header->ether_type)) {
+	switch (htons(eth_header->ether_type)) {
+		// handle ARP requests
+		case(ETHERTYPE_ARP):
+			handle_arp(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
+			break;
 
-    	// handle ARP requests
-    	case(ETHERTYPE_ARP):
-	    	handle_arp(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
-    		break;
-
-    	// handle IP packets
-    	case(ETHERTYPE_IP):
-    		handle_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
-    		break;
-    }
+		// handle IP packets
+		case(ETHERTYPE_IP):
+			handle_ipv4(buffer + sizeof(struct ether_header), length - sizeof(struct ether_header));
+			break;
+	}
 }
 
 // handle ARP requests and respond
@@ -132,33 +153,36 @@ static void handle_arp(const char *buffer, size_t length) {
 	struct netmap_ring *tx_ring;
 	char *tx_slot_buffer;
 	uint32_t cur;
+	struct sctp_netmap_base* netmap_base;
 
-	if(length < sizeof(struct arp_packet)) {
-        SCTP_PRINTF("error: packetsize too small for arp!\n");
-        return;
+	netmap_base = SCTP_BASE_VAR(netmap_base);
+
+	if (length < sizeof(struct arp_packet)) {
+		SCTP_PRINTF("error: packetsize too small for arp!\n");
+		return;
 	}
 
 	arp_request = (struct arp_packet*)buffer;
 
 	// should be fine, just in case...
-	if(!inet_pton(AF_INET,netmap_ip_src,&ip_local)) {
+	if (!inet_pton(AF_INET, netmap_ip_src, &ip_local)) {
 		SCTP_PRINTF("pton failed!\n");
 		return;
 	}
 
 	// Is this request for me? // XXX performance? valid?
 
-	if(!memcmp(&arp_request->dst_ip,&ip_local,4)) {
+	if (!memcmp(&arp_request->dst_ip, &ip_local, 4)) {
 
-		tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
+		tx_ring = NETMAP_TXRING(netmap_base->iface, 0);
 		cur = tx_ring->cur;
 
 		if(!nm_ring_empty(tx_ring)) {
 			slot = &tx_ring->slot[cur];
-			slot->len = sizeof(struct ether_header)+sizeof(struct arp_packet);
+			slot->len = sizeof(struct ether_header) + sizeof(struct arp_packet);
 
 			tx_slot_buffer = NETMAP_BUF(tx_ring, slot->buf_idx);
-			memset(tx_slot_buffer,0,sizeof(struct ether_header)+sizeof(struct ether_header));
+			memset(tx_slot_buffer, 0, sizeof(struct ether_header) + sizeof(struct ether_header));
 
 			// build ARP request - quite ugly..
 			arp_response = (struct arp_packet*)(tx_slot_buffer + sizeof(struct ether_header));
@@ -168,21 +192,21 @@ static void handle_arp(const char *buffer, size_t length) {
 			arp_response->hardware_size	= 6;
 			arp_response->protocol_size	= 4;
 			arp_response->operation		= htons(2);
-			arp_response->src_ip		= *(uint32_t*)&ip_local;
+			arp_response->src_ip		= *(uint32_t*) &ip_local;
 			arp_response->dst_ip		= arp_request->src_ip;
 			memcpy(arp_response->src_mac, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 			memcpy(arp_response->dst_mac, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
 
 			// fill ethernet header
-			eth_header = (struct ether_header*)tx_slot_buffer;
+			eth_header = (struct ether_header*) tx_slot_buffer;
 			eth_header->ether_type = htons(ETHERTYPE_ARP);
 			memcpy(eth_header->ether_shost, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 			memcpy(eth_header->ether_dhost, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
 			cur = nm_ring_next(tx_ring, cur);
 			tx_ring->head = tx_ring->cur = cur;
-			ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
+			ioctl(SCTP_BASE_VAR(netmap_fd), NIOCTXSYNC, NULL);
 		} else {
 			SCTP_PRINTF("arp - no space left in ring\n");
 		}
@@ -195,7 +219,7 @@ static void handle_ipv4(const char *buffer, size_t length) {
 	uint16_t ip_header_length;
 	uint16_t ip_total_length;
 
-	if(length < sizeof(struct ip)) {
+	if (length < sizeof(struct ip)) {
 		SCTP_PRINTF("error: packetsize too small for an ip packet!\n");
 		return;
 	}
@@ -210,13 +234,13 @@ static void handle_ipv4(const char *buffer, size_t length) {
 	}
 
 	switch (ip_header->ip_p) {
-	    case IPPROTO_SCTP:
-	        handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header, 0);
-	        break;
-	    case IPPROTO_UDP:
-	        handle_udp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
-	        break;
-    }
+		case IPPROTO_SCTP:
+			handle_sctp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header, 0);
+			break;
+		case IPPROTO_UDP:
+			handle_udp(buffer + ip_header_length, ip_total_length - ip_header_length, ip_header);
+			break;
+	}
 
 }
 
@@ -253,9 +277,8 @@ static void handle_sctp(const char *buffer, size_t length, struct ip *ip_header,
 		}
 	}
 
-	sctp_header = mtod(m, struct sctphdr *); // doppeltes simikolon
+	sctp_header = mtod(m, struct sctphdr *);
 	chunk_header = (struct sctp_chunkhdr *)((unsigned char *)sctp_header + sizeof(struct sctphdr));
-
 
 	if (ip_header->ip_tos != 0) {
 		ecn = ip_header->ip_tos & 0x02;
@@ -289,11 +312,11 @@ static void handle_sctp(const char *buffer, size_t length, struct ip *ip_header,
 
 
 #if defined(SCTP_WITH_NO_CSUM)
-	SCTP_STAT_INCR(sctps_recvnocrc);
+	SCTP_STAT_INCR(sctps_recv_spare);
 #else
 	if (src.sin_addr.s_addr == dst.sin_addr.s_addr) {
 		compute_crc = 0;
-		SCTP_STAT_INCR(sctps_recvnocrc);
+		SCTP_STAT_INCR(sctps_recv_spare);
 	} else {
 		SCTP_STAT_INCR(sctps_recvswcrc);
 	}
@@ -301,9 +324,9 @@ static void handle_sctp(const char *buffer, size_t length, struct ip *ip_header,
 
 	sctp_common_input_processing(&m, 0, sizeof(struct sctphdr), length, (struct sockaddr *)&src, (struct sockaddr *)&dst, sctp_header, chunk_header,
 #if !defined(SCTP_WITH_NO_CSUM)
-	                             1,
+								 1,
 #endif
-	                             ecn,SCTP_DEFAULT_VRFID, udp_encaps_port);
+								 ecn,SCTP_DEFAULT_VRFID, udp_encaps_port);
 
 	if (m) {
 		sctp_m_freem(m);
@@ -331,7 +354,7 @@ static void handle_udp(const char *buffer, size_t length, struct ip *ip_header) 
 // function for receive thread
 // xxx errorhandling
 void *usrsctp_netmap_recv_function(void *arg) {
-	struct sctp_netmap_base *netmap;
+	struct sctp_netmap_base *netmap_base;
 	struct pollfd pfd;
 	struct netmap_ring *ring;
 	uint32_t ring_index;
@@ -345,57 +368,57 @@ void *usrsctp_netmap_recv_function(void *arg) {
 		SCTP_PRINTF("netmap - receive thread started - pid: %u\n",getpid());
 	}
 
-	netmap = &SCTP_BASE_VAR(netmap_base);
+	netmap_base = SCTP_BASE_VAR(netmap_base);
 
-	pfd.fd = netmap->fd;
-    pfd.events = POLLIN;
-    pfd.revents = 0;
+	pfd.fd = SCTP_BASE_VAR(netmap_fd);
+	pfd.events = POLLIN;
+	pfd.revents = 0;
 
-    rx_ring_index = 0;
+	rx_ring_index = 0;
 
-	while (SCTP_BASE_VAR(netmap_base.state) == NETMAP_S_OPEN) {
+	while (netmap_base->state == NETMAP_S_OPEN) {
 
 		poll(&pfd, 1, 1000);
 		if(pfd.revents != POLLIN) {
 			continue;
 		}
 
-        ring_index = rx_ring_index;
+		ring_index = rx_ring_index;
 
-    	do {
-        	/* compute current ring to use */
-        	ring = NETMAP_RXRING(netmap->iface, ring_index);
+		do {
+			/* compute current ring to use */
+			ring = NETMAP_RXRING(netmap_base->iface, ring_index);
 
-	        if (!nm_ring_empty(ring)) {
-	            cur = ring->cur;
-	            buf_idx = ring->slot[cur].buf_idx;
-	            rx_slot_buffer = NETMAP_BUF(ring, buf_idx);
-	            rx_slot_length = ring->slot[cur].len;
+			if (!nm_ring_empty(ring)) {
+				cur = ring->cur;
+				buf_idx = ring->slot[cur].buf_idx;
+				rx_slot_buffer = NETMAP_BUF(ring, buf_idx);
+				rx_slot_length = ring->slot[cur].len;
 
 
 
-	            if(netmap_debug_operation) {
-	            	SCTP_PRINTF("netmap - incoming packet <<<\n");
-	            }
+				if(netmap_debug_operation) {
+					SCTP_PRINTF("netmap - incoming packet <<<\n");
+				}
 
 				#if defined(NETMAP_DEBUG)
-					netmap_pktinfo(rx_slot_buffer,rx_slot_length,netmap_debug_packet_info,netmap_debug_packet_dump);
+					netmap_pktinfo(rx_slot_buffer, rx_slot_length, netmap_debug_packet_info, netmap_debug_packet_dump);
 				#endif
 
-	            handle_ethernet(rx_slot_buffer,rx_slot_length);
+				handle_ethernet(rx_slot_buffer, rx_slot_length);
 
-	            ring->cur = nm_ring_next(ring, cur);
-	            ring->head = ring->cur;
-	            rx_ring_index = ring_index;
-	        }
+				ring->cur = nm_ring_next(ring, cur);
+				ring->head = ring->cur;
+				rx_ring_index = ring_index;
+			}
 
-	        ring_index++;
-	        if (ring_index == netmap->iface->ni_rx_rings) {
-	            ring_index = 0;
-	        }
+			ring_index++;
+			if (ring_index == netmap_base->iface->ni_rx_rings) {
+				ring_index = 0;
+			}
 
-	    } while (ring_index != rx_ring_index);
-    }
+		} while (ring_index != rx_ring_index);
+	}
 
 	printf("usrsctp_netmap_recv_function - exiting... \n");
 	return (NULL);
@@ -413,14 +436,17 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 	char *tx_slot_buffer;
 	uint32_t cur;
 	size_t ip_pkt_len;
+	struct sctp_netmap_base *netmap_base;
 
-	if(SCTP_BASE_VAR(netmap_base.state) != NETMAP_S_OPEN) {
+	netmap_base = SCTP_BASE_VAR(netmap_base);
+
+	if(netmap_base->state != NETMAP_S_OPEN) {
 		SCTP_PRINTF("usrsctp_netmap_ip_output - ERROR: netmap state not open!");
 		exit(-1);
 	}
 
 	ip_pkt_len = sctp_calculate_len(o_pak);
-	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
+	tx_ring = NETMAP_TXRING(netmap_base->iface, 0);
 
 	// return if packet is too big
 	if(tx_ring->nr_buf_size < (ip_pkt_len + sizeof(struct ether_header))) {
@@ -462,12 +488,12 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 
 #if defined(NETMAP_DEBUG)
 		printf("DEBUG!\n");
-		netmap_pktinfo(tx_slot_buffer,ip_pkt_len,1,1);
+		netmap_pktinfo(tx_slot_buffer, ip_pkt_len, 1, 1);
 #endif
 
 		cur = nm_ring_next(tx_ring, cur);
 		tx_ring->head = tx_ring->cur = cur;
-		ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
+		ioctl(SCTP_BASE_VAR(netmap_fd), NIOCTXSYNC, NULL);
 
 	} else {
 		*result = ENOBUFS;
@@ -479,27 +505,29 @@ void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak) {
 // Prepare netmap interface
 int usrsctp_netmap_init() {
 	struct sctp_netmap_base* netmap_base;
-	netmap_base = &SCTP_BASE_VAR(netmap_base);
+
+	SCTP_BASE_VAR(netmap_base) = malloc(sizeof(struct sctp_netmap_base));
+	netmap_base = SCTP_BASE_VAR(netmap_base);
 	netmap_base->state = NETMAP_S_OPENING;
 
 	// null struct and copy interace name
-	memset(&netmap_base->req,0,sizeof(struct nmreq));
+	memset(&netmap_base->req, 0, sizeof(struct nmreq));
 
 	strcpy(netmap_base->req.nr_name, netmap_ifname);
 
-	printf("netmap interface: %s\n",netmap_base->req.nr_name);
+	printf("netmap interface: %s\n", netmap_base->req.nr_name);
 
-    SCTP_PRINTF("netmap - local UDP port: %u\n",SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
+	SCTP_PRINTF("netmap - local UDP port: %u\n",SCTP_BASE_SYSCTL(sctp_udp_tunneling_port));
 
-	if((netmap_base->fd = open("/dev/netmap", O_RDWR)) == -1) {
-		SCTP_PRINTF("netmap - open failed for: %s - run as root?\n",netmap_base->req.nr_name);
+	if((SCTP_BASE_VAR(netmap_fd) = open("/dev/netmap", O_RDWR)) == -1) {
+		SCTP_PRINTF("netmap - open failed for: %s - run as root?\n", netmap_base->req.nr_name);
 		return -1;
 	}
 
 	netmap_base->req.nr_version = NETMAP_API;
-    //netmap_base->req.nr_flags = NR_REG_ALL_NIC;
+	//netmap_base->req.nr_flags = NR_REG_ALL_NIC;
 
-	if (ioctl(netmap_base->fd, NIOCREGIF, &netmap_base->req)) {
+	if (ioctl(SCTP_BASE_VAR(netmap_fd), NIOCREGIF, &netmap_base->req)) {
 		SCTP_PRINTF("netmap - ioctl NIOCREGIF failed\n");
 		return -1;
 	}
@@ -510,7 +538,7 @@ int usrsctp_netmap_init() {
 
 	// prepare outgoing ethernet header
 
-	if((netmap_base->mem = mmap(0, netmap_base->req.nr_memsize, PROT_WRITE | PROT_READ, MAP_SHARED, netmap_base->fd, 0)) == (void *) -1){
+	if((netmap_base->mem = mmap(0, netmap_base->req.nr_memsize, PROT_WRITE | PROT_READ, MAP_SHARED, SCTP_BASE_VAR(netmap_fd), 0)) == (void *) -1){
 		SCTP_PRINTF("netmap - mmap failed\n");
 		return -1;
 	}
@@ -519,20 +547,22 @@ int usrsctp_netmap_init() {
 
 	netmap_base->state = NETMAP_S_OPEN;
 
-	SCTP_PRINTF("netmap init complete\n");
+	SCTP_PRINTF("netmap init complete - p : %p - fd : %d\n", SCTP_BASE_VAR(netmap_base), SCTP_BASE_VAR(netmap_fd));
 	return 0;
 }
 
 
 int usrsctp_netmap_close() {
 	struct netmap_ring *tx_ring;
+	struct sctp_netmap_base *netmap_base;
 
-	SCTP_BASE_VAR(netmap_base.state) = NETMAP_S_CLOSING;
+	netmap_base = SCTP_BASE_VAR(netmap_base);
+	netmap_base->state = NETMAP_S_CLOSING;
 
 	SCTP_PRINTF("flushing outgoing packets\n");
-	tx_ring = NETMAP_TXRING(SCTP_BASE_VAR(netmap_base.iface),0);
+	tx_ring = NETMAP_TXRING(netmap_base->iface,0);
 	while (nm_tx_pending(tx_ring)) {
-		ioctl(SCTP_BASE_VAR(netmap_base.fd), NIOCTXSYNC, NULL);
+		ioctl(SCTP_BASE_VAR(netmap_fd), NIOCTXSYNC, NULL);
 		usleep(1); /* wait 1 tick */
 		SCTP_PRINTF("waiting... \n");
 	}
@@ -542,16 +572,16 @@ int usrsctp_netmap_close() {
 	SCTP_PRINTF("done\n");
 
 	// closes the file descriptor
-	if (munmap(SCTP_BASE_VAR(netmap_base.mem), SCTP_BASE_VAR(netmap_base.req.nr_memsize))) {
+	if (munmap(netmap_base->mem, netmap_base->req.nr_memsize)) {
 		SCTP_PRINTF("error - munmap failed\n");
 		return -1;
 	}
 
-	if (close(SCTP_BASE_VAR(netmap_base.fd))) {
+	if (close(SCTP_BASE_VAR(netmap_fd))) {
 		perror("netmap - close");
 		return -1;
 	}
-	SCTP_BASE_VAR(netmap_base.state) = NETMAP_S_CLOSED;
+	netmap_base->state = NETMAP_S_CLOSED;
 
 	SCTP_PRINTF("netmap - closed successfully...\n");
 

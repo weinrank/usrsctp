@@ -1,5 +1,5 @@
 /*-
- * Copyright (c) 2011-2012 Felix Weinrank
+ * Copyright (c) 2014-2018 Felix Weinrank
  * All rights reserved.
  *
  * Redistribution and use in source and binary forms, with or without
@@ -29,27 +29,7 @@
 #ifndef _USER_NETMAP_H_
 #define _USER_NETMAP_H_
 
-#if defined(__Userspace_os_FreeBSD)
-#define __FreeBSD__
-#endif
-
-#include <net/netmap_user.h>
-
-#if defined(__Userspace_os_FreeBSD)
-#undef __FreeBSD__
-#endif
-
 #include <user_mbuf.h>
-
-enum netmap_states {NETMAP_S_CLOSED, NETMAP_S_OPENING, NETMAP_S_OPEN, NETMAP_S_CLOSING};
-
-struct sctp_netmap_base {
-	enum netmap_states state;
-	int fd;
-	struct nmreq req;
-	char *mem;
-	struct netmap_if *iface;
-};
 
 void usrsctp_netmap_ip_output(int *result, struct mbuf *o_pak);
 void *usrsctp_netmap_recv_function(void *arg);

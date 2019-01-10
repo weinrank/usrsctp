@@ -136,12 +136,6 @@ list(APPEND usrsctp_netinet6_headers
 	netinet6/sctp6_var.h
 )
 
-list(APPEND usrsctp_headers
-	${usrsctp_root_headers}
-	${usrsctp_netinet_headers}
-	${usrsctp_netinet6_headers}
-)
-
 list(APPEND usrsctp_sources
 	netinet/sctp_asconf.c
 	netinet/sctp_auth.c
@@ -168,16 +162,24 @@ list(APPEND usrsctp_sources
 	user_socket.c
 )
 
-if(sctp_netmap)
-	LIST (APPEND usrsctp_root_HEADERS
+if (sctp_netmap)
+	LIST (APPEND usrsctp_root_headers
 		user_netmap.h
 		user_netmap_config.h
+		user_netmap_debug.h
 	)
 
-	LIST (APPEND usrsctp_SOURCES
+	LIST (APPEND usrsctp_sources
 		user_netmap.c
+		user_netmap_debug.c
 	)
-endif()
+endif ()
+
+list(APPEND usrsctp_headers
+	${usrsctp_root_headers}
+	${usrsctp_netinet_headers}
+	${usrsctp_netinet6_headers}
+)
 
 add_library(usrsctp SHARED ${usrsctp_sources} ${usrsctp_headers})
 add_library(usrsctp-static STATIC ${usrsctp_sources} ${usrsctp_headers})
