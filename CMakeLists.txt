@@ -75,6 +75,10 @@ endif()
 option(sctp_netmap "Netmap support" 0)
 if (sctp_netmap)
 	add_definitions(-DNETMAP)
+endif()
+
+option(sctp_netmap_debug "Netmap debug mode" 0)
+if (sctp_netmap_debug)
 	add_definitions(-DNETMAP_DEBUG)
 endif()
 
