@@ -197,7 +197,6 @@ static void handle_arp(const char *buffer, size_t length) {
 			memcpy(arp_response->src_mac, ether_aton(netmap_mac_src), ETHER_ADDR_LEN);
 			memcpy(arp_response->dst_mac, ether_aton(netmap_mac_dst), ETHER_ADDR_LEN);
 
-
 			// fill ethernet header
 			eth_header = (struct ether_header*) tx_slot_buffer;
 			eth_header->ether_type = htons(ETHERTYPE_ARP);
@@ -544,9 +543,7 @@ int usrsctp_netmap_init() {
 	}
 
 	netmap_base->iface = NETMAP_IF(netmap_base->mem, netmap_base->req.nr_offset);
-
 	netmap_base->state = NETMAP_S_OPEN;
-
 	SCTP_PRINTF("netmap init complete - p : %p - fd : %d\n", SCTP_BASE_VAR(netmap_base), SCTP_BASE_VAR(netmap_fd));
 	return 0;
 }
@@ -586,7 +583,6 @@ int usrsctp_netmap_close() {
 	SCTP_PRINTF("netmap - closed successfully...\n");
 
 	return 0;
-
 }
 
 #endif //defined(NETMAP)
