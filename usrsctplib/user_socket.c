@@ -3028,6 +3028,7 @@ sctp_userspace_ip_output(int *result, struct mbuf *o_pak,
 	struct msghdr msg_hdr;
 #endif
 	int use_udp_tunneling;
+	
 	*result = 0;
 
 #if defined(NETMAP)
