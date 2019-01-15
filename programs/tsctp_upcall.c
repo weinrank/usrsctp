@@ -307,6 +307,10 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			}
 			fflush(stdout);
 			usrsctp_close(upcall_socket);
+
+			free(tsctp_meta->buffer);
+			free(tsctp_meta);
+			return;
 		}
 	}
 
@@ -336,6 +340,8 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 			done = 1;
 			usrsctp_close(upcall_socket);
 			printf("client socket %p closed\n", (void *)upcall_socket);
+			free(tsctp_meta->buffer);
+			free(tsctp_meta);
 			return;
 		}
 
@@ -352,6 +358,9 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 
 			done = 1;
 			usrsctp_close(upcall_socket);
+			free(tsctp_meta->buffer);
+			free(tsctp_meta);
+			return;
 		}
 	}
 
@@ -762,5 +771,6 @@ int main(int argc, char **argv)
 		sleep(1);
 #endif
 	}
+
 	return 0;
 }
