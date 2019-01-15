@@ -416,7 +416,7 @@ int main(int argc, char **argv)
 	memset((void *) &local_addr, 0, sizeof(struct sockaddr_in));
 
 #ifndef _WIN32
-	while ((c = getopt(argc, argv, "a:DE:f:H:l:L:n:p:R:S:T:uU:vV")) != -1)
+	while ((c = getopt(argc, argv, "a:DE:f:Hl:L:n:p:R:S:T:uU:vV")) != -1)
 		switch(c) {
 			case 'a':
 				ind.ssb_adaptation_ind = atoi(optarg);
