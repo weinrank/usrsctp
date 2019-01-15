@@ -108,7 +108,7 @@ __FBSDID("$FreeBSD: head/sys/netinet/sctp_crc32.c 327200 2017-12-26 12:35:02Z tu
  * File Name = ............................ 8x256_tables.c
  */
 
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+#if defined(CRC32CHW) && !defined(_MSC_VER) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 static uint8_t crc32c_hw_support(void);
 static uint32_t crc32c_hw(uint32_t crc, const void *buf, size_t len);
 #endif /* defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64)) */
@@ -724,7 +724,7 @@ calculate_crc32c(uint32_t crc32c,
                  const unsigned char *buffer,
                  unsigned int length)
 {
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+#if defined(CRC32CHW) && !defined(_MSC_VER) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 	if (crc32c_hw_support() == 1) {
 		return crc32c_hw(crc32c, buffer, length);
 	}
@@ -839,7 +839,7 @@ sctp_delayed_cksum(struct mbuf *m, uint32_t offset)
 #endif
 
 
-#if defined(CRC32CHW) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
+#if defined(CRC32CHW) && !defined(_MSC_VER) && (defined(__i386) || defined(_M_IX86) || defined(__x86_64__) || defined(_M_X64))
 
 /* CRC32C in hardware begin
 found here: http://stackoverflow.com/questions/17645167/implementing-sse-4-2s-crc32c-in-software */
