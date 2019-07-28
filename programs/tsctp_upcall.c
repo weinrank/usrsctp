@@ -56,6 +56,7 @@
 #include <getopt.h>
 #endif
 #include <usrsctp.h>
+#include "programs_helper.h"
 
 #define TSCTP_CLIENT 1
 #define TSCTP_SERVER 2
@@ -359,16 +360,6 @@ handle_upcall(struct socket *upcall_socket, void *upcall_data, int upcall_flags)
 	return;
 }
 
-void
-debug_printf(const char *format, ...)
-{
-	va_list ap;
-
-	va_start(ap, format);
-	vprintf(format, ap);
-	va_end(ap);
-}
-
 int main(int argc, char **argv)
 {
 #ifndef _WIN32
@@ -636,6 +627,7 @@ int main(int argc, char **argv)
 	usrsctp_sysctl_set_sctp_debug_on(SCTP_DEBUG_ALL);
 #endif
 	usrsctp_sysctl_set_sctp_blackhole(2);
+	usrsctp_sysctl_set_sctp_no_csum_on_loopback(0);
 	usrsctp_sysctl_set_sctp_enable_sack_immediately(1);
 
 	if (!(psock = usrsctp_socket(AF_INET, SOCK_STREAM, IPPROTO_SCTP, NULL, NULL, 0, NULL))) {
