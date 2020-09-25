@@ -30,6 +30,9 @@
 
 /* __Userspace__ */
 
+#if defined(_WIN32) && !defined(_CRT_RAND_S)
+#define _CRT_RAND_S
+#endif
 #include <stdlib.h>
 #if !defined(_WIN32)
 #include <stdint.h>
@@ -42,6 +45,9 @@
 #define MIN(arg1,arg2) ((arg1) < (arg2) ? (arg1) : (arg2))
 #endif
 #include <string.h>
+#if defined(__linux__)
+#include <sys/random.h>
+#endif
 
 #define uHZ 1000
 
@@ -71,26 +77,69 @@ init_random(void)
 	return;
 }
 
-int
-read_random(void *buf, int count)
+void
+read_random(void *buf, size_t size)
 {
-	memset(buf, 'A', count);
-	return (count);
+	memset(buf, 'A', size);
+	return;
 }
-#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__OpenBSD__) || defined(__APPLE__)
+#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
 void
 init_random(void)
 {
 	return;
 }
 
-int
-read_random(void *buf, int count)
+void
+read_random(void *buf, size_t size)
 {
-	if (count >= 0) {
-		arc4random_buf(buf, count);
+	arc4random_buf(buf, size);
+	return;
+}
+#elif defined(_WIN32)
+void
+init_random(void)
+{
+	return;
+}
+
+void
+read_random(void *buf, size_t size)
+{
+	unsigned int randval;
+	size_t position, remaining;
+
+	position = 0;
+	while (position < size) {
+		if (rand_s(&randval) == 0) {
+			remaining = MIN(size - position, sizeof(unsigned int));
+			memcpy((char *)buf + position, &randval, remaining);
+			position += sizeof(unsigned int);
+		}
 	}
-	return (count);
+	return;
+}
+#elif defined(__linux__)
+void
+init_random(void)
+{
+	return;
+}
+
+void
+read_random(void *buf, size_t size)
+{
+	size_t position;
+	ssize_t n;
+
+	position = 0;
+	while (position < size) {
+		n = getrandom((char *)buf + position, size - position, 0);
+		if (n > 0) {
+			position += n;
+		}
+	}
+	return;
 }
 #else
 void
@@ -103,10 +152,10 @@ init_random(void)
 	seed = 0;
 	seed |= (unsigned int)now.tv_sec;
 	seed |= (unsigned int)now.tv_usec;
-#if !defined(_WIN32) &&! defined(__native_client__)
+#if !defined(__native_client__)
 	seed |= getpid();
 #endif
-#if defined(_WIN32) || defined(__native_client__)
+#if defined(__native_client__)
 	srand(seed);
 #else
 	srandom(seed);
@@ -114,19 +163,18 @@ init_random(void)
 	return;
 }
 
-int
-read_random(void *buf, int count)
+void
+read_random(void *buf, size_t size)
 {
 	uint32_t randval;
-	int size, i;
+	size_t position, remaining;
 
 	/* Fill buf[] with random(9) output */
-	for (i = 0; i < count; i+= (int)sizeof(uint32_t)) {
+	for (position = 0; position < size; position += sizeof(uint32_t)) {
 		randval = random();
-		size = MIN(count - i, (int)sizeof(uint32_t));
-		memcpy(&((char *)buf)[i], &randval, (size_t)size);
+		remaining = MIN(size - position, sizeof(uint32_t));
+		memcpy((char *)buf + position, &randval, remaining);
 	}
-
-	return (count);
+	return;
 }
 #endif
