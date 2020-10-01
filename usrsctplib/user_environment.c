@@ -30,11 +30,11 @@
 
 /* __Userspace__ */
 
-#if defined(_WIN32) && !defined(_CRT_RAND_S)
+#if defined(_WIN32)
+#if !defined(_CRT_RAND_S) && !defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
 #define _CRT_RAND_S
 #endif
-#include <stdlib.h>
-#if !defined(_WIN32)
+#else
 #include <stdint.h>
 #include <netinet/sctp_os_userspace.h>
 #endif
@@ -43,10 +43,6 @@
 /* #include <sys/param.h> defines MIN */
 #if !defined(MIN)
 #define MIN(arg1,arg2) ((arg1) < (arg2) ? (arg1) : (arg2))
-#endif
-#include <string.h>
-#if defined(__linux__)
-#include <sys/random.h>
 #endif
 
 #define uHZ 1000
@@ -70,7 +66,9 @@ userland_mutex_t atomic_mtx;
  * provide _some_ kind of randomness. This should only be used
  * inside other RNG's, like arc4random(9).
  */
-#ifdef FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION
+#if defined(FUZZING_BUILD_MODE_UNSAFE_FOR_PRODUCTION)
+#include <string.h>
+
 void
 init_random(void)
 {
@@ -83,7 +81,15 @@ read_random(void *buf, size_t size)
 	memset(buf, 'A', size);
 	return;
 }
-#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__)
+
+void
+finish_random(void)
+{
+	return;
+}
+#elif defined(__FreeBSD__) || defined(__DragonFly__) || defined(__OpenBSD__) || defined(__NetBSD__) || defined(__APPLE__) || defined(__Bitrig__)
+#include <stdlib.h>
+
 void
 init_random(void)
 {
@@ -96,7 +102,15 @@ read_random(void *buf, size_t size)
 	arc4random_buf(buf, size);
 	return;
 }
+
+void
+finish_random(void)
+{
+	return;
+}
 #elif defined(_WIN32)
+#include <stdlib.h>
+
 void
 init_random(void)
 {
@@ -119,7 +133,50 @@ read_random(void *buf, size_t size)
 	}
 	return;
 }
-#elif defined(__linux__)
+
+void
+finish_random(void)
+{
+	return;
+}
+#elif defined(__ANDROID__)
+#if (__ANDROID_API__ < 28)
+#include <fcntl.h>
+
+static int fd = -1;
+
+void
+init_random(void)
+{
+	fd = open("/dev/urandom", O_RDONLY);
+	return;
+}
+
+void
+read_random(void *buf, size_t size)
+{
+	size_t position;
+	ssize_t n;
+
+	position = 0;
+	while (position < size) {
+		n = read(fd, (char *)buf + position, size - position);
+		if (n > 0) {
+			position += n;
+		}
+	}
+	return;
+}
+
+void
+finish_random(void)
+{
+	close(fd);
+	return;
+}
+#else
+#include <sys/random.h>
+
 void
 init_random(void)
 {
@@ -141,7 +198,68 @@ read_random(void *buf, size_t size)
 	}
 	return;
 }
+
+void
+finish_random(void)
+{
+	return;
+}
+#endif
+#elif defined(__linux__)
+#include <sys/random.h>
+
+void
+init_random(void)
+{
+	return;
+}
+
+void
+read_random(void *buf, size_t size)
+{
+	size_t position;
+	ssize_t n;
+
+	position = 0;
+	while (position < size) {
+		n = getrandom((char *)buf + position, size - position, 0);
+		if (n > 0) {
+			position += n;
+		}
+	}
+	return;
+}
+
+void
+finish_random(void)
+{
+	return;
+}
+#elif defined(__Fuchsia__)
+#include <zircon/syscalls.h>
+
+void
+init_random(void)
+{
+	return;
+}
+
+void
+read_random(void *buf, size_t size)
+{
+	zx_cprng_draw(buf, size);
+	return;
+}
+
+void
+finish_random(void)
+{
+	return;
+}
 #else
+#include <stdlib.h>
+#include <unistd.h>
+
 void
 init_random(void)
 {
@@ -175,6 +293,12 @@ read_random(void *buf, size_t size)
 		remaining = MIN(size - position, sizeof(uint32_t));
 		memcpy((char *)buf + position, &randval, remaining);
 	}
+	return;
+}
+
+void
+finish_random(void)
+{
 	return;
 }
 #endif

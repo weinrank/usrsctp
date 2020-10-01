@@ -34,7 +34,7 @@
 
 #if defined(__FreeBSD__) && !defined(__Userspace__)
 #include <sys/cdefs.h>
-__FBSDID("$FreeBSD: head/sys/netinet/sctp_indata.c 366114 2020-09-24 12:26:06Z tuexen $");
+__FBSDID("$FreeBSD: head/sys/netinet/sctp_indata.c 366199 2020-09-27 13:32:02Z tuexen $");
 #endif
 
 #include <netinet/sctp_os.h>
@@ -403,7 +403,7 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 				if (unordered) {
 					control->on_strm_q = SCTP_ON_UNORDERED;
 				} else {
-					control->on_strm_q = SCTP_ON_ORDERED ;
+					control->on_strm_q = SCTP_ON_ORDERED;
 				}
 				break;
 			} else if (SCTP_MID_EQ(asoc->idata_supported, at->mid, control->mid)) {
@@ -424,9 +424,9 @@ sctp_place_control_in_stream(struct sctp_stream_in *strm,
 					}
 					TAILQ_INSERT_AFTER(q, at, control, next_instrm);
 					if (unordered) {
-						control->on_strm_q = SCTP_ON_UNORDERED ;
+						control->on_strm_q = SCTP_ON_UNORDERED;
 					} else {
-						control->on_strm_q = SCTP_ON_ORDERED ;
+						control->on_strm_q = SCTP_ON_ORDERED;
 					}
 					break;
 				}
@@ -5462,7 +5462,6 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	struct sctp_queued_to_read *control, int ordered, uint32_t cumtsn)
 {
 	struct sctp_tmit_chunk *chk, *nchk;
-	int cnt_removed = 0;
 
 	/*
 	 * For now large messages held on the stream reasm that are
@@ -5472,17 +5471,18 @@ sctp_flush_reassm_for_str_seq(struct sctp_tcb *stcb,
 	 * delivery function... to see if it can be delivered... But
 	 * for now we just dump everything on the queue.
 	 */
-	if (!asoc->idata_supported && !ordered && SCTP_TSN_GT(control->fsn_included, cumtsn)) {
+	if (!asoc->idata_supported && !ordered &&
+	    control->first_frag_seen &&
+	    SCTP_TSN_GT(control->fsn_included, cumtsn)) {
 		return;
 	}
 	TAILQ_FOREACH_SAFE(chk, &control->reasm, sctp_next, nchk) {
 		/* Purge hanging chunks */
-		if (!asoc->idata_supported && (ordered == 0)) {
+		if (!asoc->idata_supported && !ordered) {
 			if (SCTP_TSN_GT(chk->rec.data.tsn, cumtsn)) {
 				break;
 			}
 		}
-		cnt_removed++;
 		TAILQ_REMOVE(&control->reasm, chk, sctp_next);
 		if (asoc->size_on_reasm_queue >= chk->send_size) {
 			asoc->size_on_reasm_queue -= chk->send_size;
@@ -5648,7 +5648,7 @@ sctp_handle_forward_tsn(struct sctp_tcb *stcb,
 
 		/* Flush all the un-ordered data based on cum-tsn */
 		SCTP_INP_READ_LOCK(stcb->sctp_ep);
-		for (sid = 0 ; sid < asoc->streamincnt; sid++) {
+		for (sid = 0; sid < asoc->streamincnt; sid++) {
 			strm = &asoc->strmin[sid];
 			if (!TAILQ_EMPTY(&strm->uno_inqueue)) {
 				sctp_flush_reassm_for_str_seq(stcb, asoc, strm, TAILQ_FIRST(&strm->uno_inqueue), 0, new_cum_tsn);
